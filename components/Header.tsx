@@ -3,13 +3,15 @@ import { tr, type Lang } from "@/content/types";
 import { ui } from "@/content/ui";
 import { LangToggle } from "./LangToggle";
 import { ThemeToggle } from "./ThemeToggle";
+import { NavLinks } from "./NavLinks";
+import { MobileMenu } from "./MobileMenu";
 
 export function Header({ lang }: { lang: Lang }) {
   const nav = [
-    { href: `/${lang}/#work`, label: tr(ui.navWork, lang) },
-    { href: `/${lang}/#experience`, label: tr(ui.navExperience, lang) },
-    { href: `/${lang}/#skills`, label: tr(ui.navSkills, lang) },
-    { href: `/${lang}/#contact`, label: tr(ui.navContact, lang) },
+    { id: "work", label: tr(ui.navWork, lang) },
+    { id: "experience", label: tr(ui.navExperience, lang) },
+    { id: "skills", label: tr(ui.navSkills, lang) },
+    { id: "contact", label: tr(ui.navContact, lang) },
   ];
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur">
@@ -17,16 +19,13 @@ export function Header({ lang }: { lang: Lang }) {
         <Link href={`/${lang}/`} className="font-display text-lg font-bold tracking-tight">
           Marouane<span className="text-accent">.</span>
         </Link>
-        <nav aria-label="Main" className="ml-auto hidden gap-6 text-sm md:flex">
-          {nav.map((n) => (
-            <a key={n.href} href={n.href} className="text-muted transition-colors hover:text-ink">
-              {n.label}
-            </a>
-          ))}
+        <nav aria-label="Main" className="ml-auto hidden md:block">
+          <NavLinks lang={lang} items={nav} />
         </nav>
         <div className="ml-auto flex items-center gap-1 md:ml-2">
           <LangToggle lang={lang} label={tr(ui.langToggle, lang)} />
           <ThemeToggle label={tr(ui.themeToggle, lang)} />
+          <MobileMenu lang={lang} label={tr(ui.menu, lang)} items={nav} />
         </div>
       </div>
     </header>

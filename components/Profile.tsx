@@ -80,7 +80,9 @@ export function Skills({ lang }: { lang: Lang }) {
         {profile.skills.map((g) => (
           <div key={g.group.en}>
             <dt className="font-display font-semibold">{tr(g.group, lang)}</dt>
-            <dd className="mt-1 leading-relaxed text-muted">{g.items.join(", ")}</dd>
+            <dd className="mt-2.5">
+              <Chips items={g.items} />
+            </dd>
           </div>
         ))}
         <div>

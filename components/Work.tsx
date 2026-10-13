@@ -1,9 +1,30 @@
 import Link from "next/link";
 import { tr, type Lang, type Project } from "@/content/types";
 import { projects } from "@/content/projects";
+import { diagrams } from "@/content/diagrams";
 import { ui } from "@/content/ui";
 import { Chips, Section } from "./Section";
 import { Logo, logos } from "./Logo";
+
+/** One-line preview of the architecture: the first stage of each step, joined by chevrons. */
+function MiniFlow({ slug, lang }: { slug: string; lang: Lang }) {
+  const steps = diagrams[slug];
+  if (!steps) return null;
+  return (
+    <ol aria-hidden className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+      {steps.map((step, i) => (
+        <li key={i} className="flex items-center gap-1.5">
+          {i > 0 && (
+            <svg viewBox="0 0 8 12" className="h-2.5 w-2 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M2 2l4 4-4 4" />
+            </svg>
+          )}
+          <span className="rounded-md bg-accent-wash px-2 py-0.5 font-medium text-accent-ink">{tr(step[0].label, lang)}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 function ProjectRow({ project, lang }: { project: Project; lang: Lang }) {
   const href = `/${lang}/work/${project.slug}/`;
@@ -17,6 +38,7 @@ function ProjectRow({ project, lang }: { project: Project; lang: Lang }) {
           </Link>
         </h4>
         <p className="mt-2 max-w-2xl leading-relaxed text-muted">{tr(project.summary, lang)}</p>
+        <MiniFlow slug={project.slug} lang={lang} />
         <p className="mt-3 text-sm font-semibold text-accent-ink underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-current">
           {tr(ui.readCase, lang)}
         </p>

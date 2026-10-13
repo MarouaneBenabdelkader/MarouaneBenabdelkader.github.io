@@ -14,11 +14,12 @@ function Schematic({ lang }: { lang: Lang }) {
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[400px]">
       <svg viewBox="0 0 400 400" className="draw absolute inset-0 size-full text-accent" fill="none" aria-hidden>
-        <path className="wire" pathLength={1} d="M10 30 H60 Q80 30 80 50 V110 Q80 130 100 130 H118" stroke="currentColor" strokeWidth="1.5" />
-        <path className="wire" pathLength={1} d="M390 30 H340 Q320 30 320 50 V110 Q320 130 300 130 H282" stroke="currentColor" strokeWidth="1.5" />
-        <path className="wire" pathLength={1} d="M10 370 H60 Q80 370 80 350 V290 Q80 270 100 270 H118" stroke="currentColor" strokeWidth="1.5" />
-        <path className="wire" pathLength={1} d="M390 370 H340 Q320 370 320 350 V290 Q320 270 300 270 H282" stroke="currentColor" strokeWidth="1.5" />
-        {[[118, 130], [282, 130], [118, 270], [282, 270]].map(([cx, cy]) => (
+        {/* The portrait occupies x 70–330, y 40–365 (4:5); wires land on its sides. */}
+        <path className="wire" pathLength={1} d="M10 30 H30 Q45 30 45 45 V125 Q45 140 60 140 H70" stroke="currentColor" strokeWidth="1.5" />
+        <path className="wire" pathLength={1} d="M390 30 H370 Q355 30 355 45 V125 Q355 140 340 140 H330" stroke="currentColor" strokeWidth="1.5" />
+        <path className="wire" pathLength={1} d="M10 370 H30 Q45 370 45 355 V280 Q45 265 60 265 H70" stroke="currentColor" strokeWidth="1.5" />
+        <path className="wire" pathLength={1} d="M390 370 H370 Q355 370 355 355 V280 Q355 265 340 265 H330" stroke="currentColor" strokeWidth="1.5" />
+        {[[70, 140], [330, 140], [70, 265], [330, 265]].map(([cx, cy]) => (
           <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" fill="currentColor" />
         ))}
         {specialties.map((s) => (
@@ -31,9 +32,9 @@ function Schematic({ lang }: { lang: Lang }) {
       <img
         src="/images/profile.jpg"
         alt={profile.name}
-        width={164}
-        height={164}
-        className="absolute left-1/2 top-1/2 size-[41%] -translate-x-1/2 -translate-y-1/2 rounded-[28%] border border-line object-cover"
+        width={260}
+        height={325}
+        className="absolute left-[17.5%] top-[10%] h-[81.25%] w-[65%] rounded-[2rem] border border-line object-cover"
       />
     </div>
   );

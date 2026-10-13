@@ -5,6 +5,7 @@ export const ui = {
   navExperience: { en: "Experience", fr: "Expérience" },
   navSkills: { en: "Skills", fr: "Compétences" },
   navContact: { en: "Contact", fr: "Contact" },
+  menu: { en: "Menu", fr: "Menu" },
   seeWork: { en: "See my work", fr: "Voir mes projets" },
   downloadCv: { en: "Download CV", fr: "Télécharger le CV" },
   status: {
