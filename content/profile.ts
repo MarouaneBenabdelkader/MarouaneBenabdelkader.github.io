@@ -6,12 +6,12 @@ type Job = { role: T; company: string; logo?: LogoInfo; place: string; type: T; 
 export const profile = {
   name: "Marouane Benabdelkader",
   title: {
-    en: "Full stack AI engineer building agentic systems, NLP and computer vision",
-    fr: "Ingénieur IA full stack : systèmes agentiques, NLP et vision par ordinateur",
+    en: "Full stack AI engineer and full stack developer: agentic systems, NLP, computer vision and web apps",
+    fr: "Ingénieur IA et développeur full stack : systèmes agentiques, NLP, vision par ordinateur et applications web",
   },
   pitch: {
-    en: "I design and ship agentic AI workflows, RAG assistants and computer-vision pipelines, then put them in production with Python, TypeScript, FastAPI, PyTorch and Azure. Master's student in AI at Université Côte d'Azur.",
-    fr: "Je conçois et livre des workflows d'IA agentique, des assistants RAG et des pipelines de vision par ordinateur, jusqu'à leur mise en production avec Python, TypeScript, FastAPI, PyTorch et Azure. Étudiant en Master IA à l'Université Côte d'Azur.",
+    en: "I design and ship agentic AI workflows, RAG assistants, computer-vision pipelines and the full stack web apps around them, then put them in production with Python, TypeScript, FastAPI, PyTorch and Azure. Master's student in AI at Université Côte d'Azur.",
+    fr: "Je conçois et livre des workflows d'IA agentique, des assistants RAG, des pipelines de vision par ordinateur et les applications web full stack qui les portent, jusqu'à leur mise en production avec Python, TypeScript, FastAPI, PyTorch et Azure. Étudiant en Master IA à l'Université Côte d'Azur.",
   },
   location: { en: "Nice, France", fr: "Nice, France" },
   email: "benabdelkader.marouane@proton.me",
@@ -39,28 +39,6 @@ export const profile = {
         {
           en: "Lead automation initiatives and deliver internal trainings on AI tools and best practices.",
           fr: "Pilotage d'initiatives d'automatisation et formations internes sur les outils IA et les bonnes pratiques.",
-        },
-      ],
-    },
-    {
-      role: { en: "Full Stack Developer", fr: "Développeur Full Stack" },
-      company: "Codito Ergo Sum",
-      logo: logos.codito,
-      place: "France",
-      type: { en: "Freelance", fr: "Freelance" },
-      dates: { en: "2025 – Present", fr: "2025 – Aujourd'hui" },
-      bullets: [
-        {
-          en: "Build AI agents, RAG assistants and automation pipelines for the agency's clients, from scoping workshops to production.",
-          fr: "Conception d'agents IA, d'assistants RAG et de pipelines d'automatisation pour les clients de l'agence, de l'atelier de cadrage à la mise en production.",
-        },
-        {
-          en: "Deliver full stack apps end to end: FastAPI and Node backends, Next.js and React frontends, Supabase, SQLite and Qdrant data layers.",
-          fr: "Livraison d'applications full stack de bout en bout : backends FastAPI et Node, frontends Next.js et React, données Supabase, SQLite et Qdrant.",
-        },
-        {
-          en: "Five projects shipped across wellbeing, civil engineering, industrial sales, construction and solar energy (see case studies above).",
-          fr: "Cinq projets livrés dans le bien-être, l'ingénierie VRD, la prospection industrielle, le BTP et l'énergie solaire (voir les études de cas ci-dessus).",
         },
       ],
     },
