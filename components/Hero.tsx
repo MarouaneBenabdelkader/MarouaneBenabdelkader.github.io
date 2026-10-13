@@ -43,10 +43,14 @@ export function Hero({ lang }: { lang: Lang }) {
   return (
     <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 sm:px-8 md:grid-cols-[1.25fr_1fr] md:pb-24 md:pt-20">
       <div>
-        <p className="flex items-start gap-2 text-sm text-muted">
-          <span className="mt-1.5 size-2 shrink-0 rounded-full bg-accent" aria-hidden />
-          {tr(ui.status, lang)}
-        </p>
+        <ul className="space-y-1.5 text-sm text-muted">
+          {[ui.status, ui.availability].map((line) => (
+            <li key={line.en} className="flex items-start gap-2">
+              <span className="mt-1.5 size-2 shrink-0 rounded-full bg-accent" aria-hidden />
+              {tr(line, lang)}
+            </li>
+          ))}
+        </ul>
         <h1 className="mt-6 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-extrabold leading-[0.95] tracking-[-0.035em]">
           Marouane
           <br />

@@ -11,10 +11,10 @@ export const projects: Project[] = [
     },
     sector: { en: "Parenting & workplace wellbeing", fr: "Parentalité & bien-être au travail" },
     summary: {
-      en: "A conversational scoring agent that routes parents to the right training module, plus a premium AI expert grounded in ~14,700 pages of proprietary course material.",
-      fr: "Un agent conversationnel de scoring qui oriente les parents vers le bon module de formation, et un expert IA premium ancré dans ~14 700 pages de contenus propriétaires.",
+      en: "A conversational diagnostic that routes parents, managers and perinatal professionals to the right training module, plus a premium AI expert grounded in ~14,700 pages of proprietary course material.",
+      fr: "Un diagnostic conversationnel qui oriente parents, managers et professionnels de la périnatalité vers le bon module de formation, et un expert IA premium ancré dans ~14 700 pages de contenus propriétaires.",
     },
-    stack: ["n8n", "OpenAI", "Supabase pgvector", "MinerU OCR", "React", "Stripe"],
+    stack: ["React", "Express", "OpenAI", "n8n AI Agent", "Supabase pgvector", "MinerU", "Stripe"],
     context: {
       en: "The client sells parenting and wellbeing programs to individuals and, through employers, to their staff. Its static orientation form converted poorly and its large training library was invisible to members.",
       fr: "Le client propose des programmes de parentalité et de bien-être aux particuliers et, via les employeurs, à leurs salariés. Son formulaire d'orientation statique convertissait mal et sa vaste bibliothèque de formations restait invisible pour les membres.",
@@ -25,28 +25,35 @@ export const projects: Project[] = [
     },
     built: [
       {
-        en: "Free tier: a 10-question orientation agent with suggestion buttons or free-text answers; free text is analysed for sentiment and keywords and folded into the score, then the agent recommends a training module.",
-        fr: "Offre gratuite : un agent d'orientation en 10 questions, avec boutons de suggestion ou réponse libre ; le texte libre est analysé (sentiment, mots-clés) et intégré au score, puis l'agent recommande un module de formation.",
+        en: "Free diagnostic: the agent first places the user in one of three audiences (parents, managers and HR, perinatal professionals), then runs a branch-specific question flow with suggestion buttons or free-text answers, and recommends a training module.",
+        fr: "Diagnostic gratuit : l'agent classe d'abord l'utilisateur parmi trois publics (parents, managers et RH, professionnels de la périnatalité), puis déroule un parcours de questions propre à chaque branche, avec boutons de suggestion ou réponse libre, et recommande un module de formation.",
       },
       {
         en: "Ingestion pipeline: OCR and layout extraction with MinerU, hierarchy-aware chunking (H1 > H2 > H3 context), OpenAI embeddings stored in Supabase pgvector, split into thematic collections.",
         fr: "Pipeline d'ingestion : OCR et extraction de mise en page avec MinerU, découpage tenant compte de la hiérarchie (contexte H1 > H2 > H3), embeddings OpenAI stockés dans Supabase pgvector, répartis en collections thématiques.",
       },
       {
-        en: "Premium tier: a RAG expert orchestrated in n8n that answers only from the corpus, cites document and collection, and returns a confidence level (high / medium / low / off-topic).",
-        fr: "Offre premium : un expert RAG orchestré dans n8n qui répond uniquement à partir du corpus, cite document et collection, et renvoie un niveau de confiance (haute / moyenne / faible / hors sujet).",
+        en: "Premium tier: a RAG expert built on n8n's AI Agent (LangChain-based) with conversation memory; it answers only from the corpus, cites document and collection, and returns a confidence level (high / medium / low / off-topic).",
+        fr: "Offre premium : un expert RAG construit sur l'agent IA de n8n (basé sur LangChain) avec mémoire de conversation ; il répond uniquement à partir du corpus, cite document et collection, et renvoie un niveau de confiance (haute / moyenne / faible / hors sujet).",
       },
       {
-        en: "Freemium access: Stripe paywall for individuals and partner codes that unlock premium for employees of B2B customers.",
-        fr: "Accès freemium : paywall Stripe pour les particuliers et codes partenaires qui débloquent le premium pour les salariés des entreprises clientes.",
+        en: "Full stack web app: React frontend and Express API on Vercel, Supabase auth with row-level security, roles (free, premium, B2B, admin), Stripe subscriptions, partner codes that unlock premium for B2B employees, and an admin dashboard for codes and users.",
+        fr: "Application web full stack : frontend React et API Express sur Vercel, authentification Supabase avec sécurité au niveau des lignes, rôles (gratuit, premium, B2B, admin), abonnements Stripe, codes partenaires qui débloquent le premium pour les salariés B2B, et tableau de bord admin pour les codes et les utilisateurs.",
       },
     ],
     decisions: [
       {
         title: { en: "Scoring stays deterministic", fr: "Un scoring déterministe" },
         body: {
-          en: "The LLM interprets free-text answers into signals, but the score itself is computed by code, so the same answers always lead to the same recommendation.",
-          fr: "Le LLM interprète les réponses libres en signaux, mais le score est calculé par du code : les mêmes réponses mènent toujours à la même recommandation.",
+          en: "A small model only picks the user's branch, constrained to a JSON-schema enum, and an evaluator reads free-text answers; the score itself comes from typed rules, so the same answers always lead to the same recommendation.",
+          fr: "Un petit modèle choisit uniquement la branche de l'utilisateur, contraint par une énumération JSON Schema, et un évaluateur lit les réponses libres ; le score vient de règles typées, donc les mêmes réponses mènent toujours à la même recommandation.",
+        },
+      },
+      {
+        title: { en: "From workflow nodes to typed services", fr: "Des nœuds de workflow aux services typés" },
+        body: {
+          en: "The diagnostic began as an n8n workflow. I moved it into TypeScript services (branch selector, evaluator, rules, scoring) so the logic is versioned, reviewable and runs on cheap nano models.",
+          fr: "Le diagnostic a commencé comme un workflow n8n. Je l'ai migré vers des services TypeScript (sélecteur de branche, évaluateur, règles, scoring) pour que la logique soit versionnée, relisible et tourne sur des modèles nano peu coûteux.",
         },
       },
       {
@@ -65,8 +72,8 @@ export const projects: Project[] = [
       },
     ],
     status: {
-      en: "Built: orientation agent and RAG expert over 127 documents (~14,700 pages).",
-      fr: "Réalisé : agent d'orientation et expert RAG sur 127 documents (~14 700 pages).",
+      en: "Built and deployed: diagnostic agent, premium RAG expert over 127 documents (~14,700 pages), payments, B2B access and admin tools.",
+      fr: "Réalisé et déployé : agent de diagnostic, expert RAG premium sur 127 documents (~14 700 pages), paiements, accès B2B et outils d'administration.",
     },
   },
   {
@@ -81,7 +88,7 @@ export const projects: Project[] = [
       en: "A chat app that answers questions on French public-works standards and drafts full technical specification documents (CCTP) chapter by chapter, with a live editor and PDF/Word export.",
       fr: "Une application de chat qui répond aux questions sur les normes des marchés publics de travaux et rédige des CCTP complets chapitre par chapitre, avec éditeur en direct et export PDF/Word.",
     },
-    stack: ["Next.js", "FastAPI", "OpenAI", "Supabase pgvector", "Tavily", "TipTap", "LaTeX"],
+    stack: ["Next.js", "FastAPI", "OpenAI", "Supabase pgvector", "LangChain", "MinerU", "Tavily", "TipTap", "LaTeX"],
     context: {
       en: "Landscape architects, civil (VRD) engineers and urban planners write CCTP documents (technical clauses for public tenders) that run past 30 pages and must stay consistent with the CCTG standards.",
       fr: "Paysagistes, ingénieurs VRD et urbanistes rédigent des CCTP de plus de 30 pages qui doivent rester cohérents avec les normes du CCTG et des fascicules.",
@@ -92,8 +99,12 @@ export const projects: Project[] = [
     },
     built: [
       {
-        en: "General mode: a RAG assistant over the standards corpus (pgvector) with web search via Tavily, rendering tables and equations natively.",
-        fr: "Mode général : un assistant RAG sur le corpus de normes (pgvector) avec recherche web via Tavily, et rendu natif des tableaux et équations.",
+        en: "Knowledge base: crawled the 35 CCTG fascicules, extracted them with MinerU, split them with LangChain's Markdown-header and recursive splitters, and embedded them into pgvector.",
+        fr: "Base de connaissances : collecte des 35 fascicules du CCTG, extraction avec MinerU, découpage avec les splitters Markdown et récursif de LangChain, puis embeddings dans pgvector.",
+      },
+      {
+        en: "General mode: a RAG assistant over the standards with web search via Tavily, rendering tables and equations natively; users can attach their own PDF, Word, Excel or scanned files (OCR).",
+        fr: "Mode général : un assistant RAG sur les normes avec recherche web via Tavily et rendu natif des tableaux et équations ; l'utilisateur peut joindre ses propres PDF, Word, Excel ou documents scannés (OCR).",
       },
       {
         en: "Generation mode: a Manager agent runs discovery questions, proposes an editable table of contents, then a Writer agent generates every chapter in parallel.",
@@ -155,7 +166,7 @@ export const projects: Project[] = [
       en: "Sales reps type a request in plain French and get ranked prospect companies, each with an explainable score, buying signals, decision-makers and a suggested approach angle.",
       fr: "Les commerciaux formulent une demande en français et obtiennent des entreprises prospects classées, chacune avec un score explicable, des signaux d'achat, les décideurs et un angle d'approche.",
     },
-    stack: ["Next.js", "TypeScript", "LangChain", "Mistral", "Qdrant", "SQLite", "Pappers", "Apollo", "Unipile"],
+    stack: ["Next.js", "TypeScript", "LangChain", "Mistral", "Qdrant", "SQLite", "Dolibarr", "Pappers", "Apollo", "Unipile"],
     context: {
       en: "An engineering firm wanted its sales team to find companies that look like its best customers, without hours of manual searching across registries, CRMs and LinkedIn.",
       fr: "Un bureau d'ingénierie voulait que son équipe commerciale trouve des entreprises ressemblant à ses meilleurs clients, sans des heures de recherche manuelle entre registres, CRM et LinkedIn.",
@@ -174,12 +185,12 @@ export const projects: Project[] = [
         fr: "Une boucle ReAct LangChain interroge le registre des entreprises et décide quel critère relâcher quand rien ne remonte, avec une échelle de repli fixe.",
       },
       {
-        en: "Nightly CRM sync, entity resolution and calibration that derives the ideal-customer profile from past deals, indexed in Qdrant.",
-        fr: "Synchronisation nocturne du CRM, résolution d'entités et calibration qui déduit le profil client idéal à partir de l'historique des affaires, indexé dans Qdrant.",
+        en: "A nightly job mirrors the CRM, resolves company entities, recalibrates the ideal-customer profile from past deals and indexes those deals in Qdrant.",
+        fr: "Un traitement nocturne réplique le CRM, résout les entités, recalibre le profil client idéal à partir de l'historique des affaires et indexe ces affaires dans Qdrant.",
       },
       {
-        en: "Enrichment: growth and buying signals (Apollo, Tavily) on a shortlist, LinkedIn decision-makers via Unipile, and a short approach angle per prospect.",
-        fr: "Enrichissement : signaux de croissance et d'achat (Apollo, Tavily) sur une présélection, décideurs LinkedIn via Unipile, et un angle d'approche court par prospect.",
+        en: "Enrichment: growth and buying signals (Apollo, Tavily) on a shortlist, LinkedIn decision-makers via Unipile, and a short approach angle per prospect written with similar past deals from Qdrant as context.",
+        fr: "Enrichissement : signaux de croissance et d'achat (Apollo, Tavily) sur une présélection, décideurs LinkedIn via Unipile, et un angle d'approche court par prospect, rédigé avec des affaires passées similaires tirées de Qdrant.",
       },
       {
         en: "Admin console: versioned system prompt, live-editable scoring weights, and a one-click probe of every external API.",
@@ -209,6 +220,13 @@ export const projects: Project[] = [
         },
       },
       {
+        title: { en: "Pinned by golden files", fr: "Verrouillé par des fichiers de référence" },
+        body: {
+          en: "Scoring, exclusions, entity resolution and the nightly run are checked against golden-file snapshots and the numbered acceptance criteria of the specification.",
+          fr: "Scoring, exclusions, résolution d'entités et traitement nocturne sont vérifiés contre des instantanés de référence et les critères d'acceptation numérotés du cahier des charges.",
+        },
+      },
+      {
         title: { en: "No native build step", fr: "Aucune compilation native" },
         body: {
           en: "SQLite comes from Node's built-in node:sqlite, so installs never need a C++ toolchain on the client's machines.",
@@ -233,7 +251,7 @@ export const projects: Project[] = [
       en: "Every business day the agent reads the aged-receivables spreadsheet, decides which invoices to chase, and prepares one consolidated, graduated reminder per client with the invoice PDFs attached.",
       fr: "Chaque jour ouvré, l'agent lit la balance âgée, décide quelles factures relancer et prépare une relance graduée et consolidée par client, factures PDF jointes.",
     },
-    stack: ["Python", "FastAPI", "Next.js", "Microsoft Graph", "RapidFuzz", "SQLite", "pytest"],
+    stack: ["Python", "Next.js", "Supabase", "Microsoft Graph", "RapidFuzz", "SQLite", "pytest"],
     context: {
       en: "A multi-entity construction group issues about a hundred invoices a month and a third go overdue. Reminders were manual, late and untracked, and the ERP and accounting software expose no API.",
       fr: "Un groupe du BTP à plusieurs entités émet une centaine de factures par mois, dont un tiers passe en retard. Les relances étaient manuelles, tardives et non suivies, et l'ERP comme le logiciel comptable n'offrent aucune API.",
@@ -256,8 +274,12 @@ export const projects: Project[] = [
         fr: "Un email par client regroupant toutes ses factures en retard, PDF retrouvés sur le partage et vérifiés, envoyés via Microsoft Graph.",
       },
       {
-        en: "A validation dashboard where the finance team reviews, edits and approves each email; client replies pause the sequence and auto-replies are ignored.",
-        fr: "Un tableau de bord de validation où la direction financière relit, modifie et approuve chaque email ; une réponse client met la séquence en pause, les réponses automatiques sont ignorées.",
+        en: "A Next.js validation dashboard where the finance team reviews, edits and approves each email. The agent's SQLite journal is mirrored to Supabase after every run, so the web app reads a replica. Client replies pause the sequence; auto-replies are ignored.",
+        fr: "Un tableau de bord Next.js où la direction financière relit, modifie et approuve chaque email. Le journal SQLite de l'agent est répliqué dans Supabase après chaque exécution, et l'application web lit cette copie. Une réponse client met la séquence en pause ; les réponses automatiques sont ignorées.",
+      },
+      {
+        en: "Optional LLM rewording of each email, off by default until GDPR sign-off: amounts, references, dates and tone must stay identical, and any failure falls back to the template.",
+        fr: "Reformulation optionnelle des emails par LLM, désactivée par défaut en attendant la validation RGPD : montants, références, dates et ton doivent rester identiques, et tout échec revient au modèle d'email.",
       },
     ],
     decisions: [
@@ -285,8 +307,8 @@ export const projects: Project[] = [
       {
         title: { en: "Tested business rules", fr: "Des règles métier testées" },
         body: {
-          en: "Sequence timing, matching, grouping, blocking rules and reply detection are each covered by a pytest suite.",
-          fr: "Calendrier de séquence, rapprochement, regroupement, règles de blocage et détection des réponses sont chacun couverts par une suite pytest.",
+          en: "203 pytest tests cover sequence timing, matching, grouping, blocking rules, PDF checks, the Supabase sync and reply detection.",
+          fr: "203 tests pytest couvrent le calendrier de séquence, le rapprochement, le regroupement, les règles de blocage, la vérification des PDF, la synchronisation Supabase et la détection des réponses.",
         },
       },
     ],
@@ -307,7 +329,7 @@ export const projects: Project[] = [
       en: "Weekly industry news is scraped, classified and turned into a short spoken script, then into a subtitled AI-avatar video ready for LinkedIn.",
       fr: "L'actualité hebdomadaire du secteur est collectée, classée et transformée en script oral court, puis en vidéo avatar IA sous-titrée prête pour LinkedIn.",
     },
-    stack: ["Python", "FastAPI", "React", "OpenAI", "HeyGen", "FFmpeg", "Supabase"],
+    stack: ["Python", "FastAPI", "BeautifulSoup", "React", "OpenAI", "HeyGen", "FFmpeg", "Supabase"],
     context: {
       en: "A solar installer wanted a weekly video news brief presented by an AI avatar of its founder, to build an audience on LinkedIn without a film crew.",
       fr: "Un installateur solaire voulait un journal vidéo hebdomadaire présenté par un avatar IA de son fondateur, pour développer son audience LinkedIn sans équipe de tournage.",
@@ -322,16 +344,16 @@ export const projects: Project[] = [
         fr: "Scrapers pour cinq médias spécialisés avec une fenêtre du lundi au jour courant, dédoublonnage par URL et suivi des exécutions par source.",
       },
       {
-        en: "GPT classification of each article (relevant to solar, concerns France, audience, relevance score) to set priority automatically.",
-        fr: "Classification GPT de chaque article (photovoltaïque, concerne la France, cible, score de pertinence) pour fixer la priorité automatiquement.",
+        en: "GPT classification of each article in parallel batches (relevant to solar, concerns France, audience, relevance score) to set priority automatically.",
+        fr: "Classification GPT de chaque article par lots parallèles (photovoltaïque, concerne la France, cible, score de pertinence) pour fixer la priorité automatiquement.",
       },
       {
         en: "Script studio: pick and reorder articles, generate a structured news script, re-prompt, track tokens and save to a library.",
         fr: "Studio de script : sélection et réordonnancement des articles, génération d'un script structuré, reprompt, suivi des tokens et bibliothèque de scripts.",
       },
       {
-        en: "Video production with HeyGen, then FFmpeg post-processing that burns karaoke-style subtitles and stores the result; admin dashboard tracks API usage and real video cost.",
-        fr: "Production vidéo avec HeyGen, puis post-traitement FFmpeg qui incruste des sous-titres karaoké et stocke le résultat ; un tableau de bord admin suit l'usage des API et le coût réel des vidéos.",
+        en: "Video production with HeyGen, then FFmpeg post-processing that burns karaoke-style subtitles and stores the result; user accounts and an admin dashboard track API usage and real video cost. The React app is served by FastAPI and auto-deployed on Render.",
+        fr: "Production vidéo avec HeyGen, puis post-traitement FFmpeg qui incruste des sous-titres karaoké et stocke le résultat ; comptes utilisateurs et tableau de bord admin suivent l'usage des API et le coût réel des vidéos. L'application React est servie par FastAPI et déployée automatiquement sur Render.",
       },
     ],
     decisions: [

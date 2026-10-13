@@ -11,6 +11,10 @@ export const ui = {
     en: "AI engineer apprentice at Amadeus, open to freelance missions",
     fr: "Ingénieur IA en alternance chez Amadeus, disponible pour des missions freelance",
   },
+  availability: {
+    en: "Available for a permanent position (CDI) from September 2027",
+    fr: "Disponible pour un CDI à partir de septembre 2027",
+  },
   workEyebrow: { en: "Freelance, 2025 – present", fr: "Freelance, 2025 – aujourd'hui" },
   workTitle: { en: "Selected freelance work", fr: "Projets freelance" },
   workIntro: {
@@ -32,8 +36,8 @@ export const ui = {
   educationTitle: { en: "Education", fr: "Formation" },
   contactTitle: { en: "Let's build something", fr: "Construisons quelque chose" },
   contactIntro: {
-    en: "Hiring an AI engineer or need an agent, a RAG system or an automation built? Write to me.",
-    fr: "Vous recrutez un ingénieur IA ou avez besoin d'un agent, d'un système RAG ou d'une automatisation ? Écrivez-moi.",
+    en: "Hiring an AI engineer for September 2027, or need an agent, a RAG system, an automation or a web app built now? Write to me.",
+    fr: "Vous recrutez un ingénieur IA pour septembre 2027, ou avez besoin dès maintenant d'un agent, d'un système RAG, d'une automatisation ou d'une application web ? Écrivez-moi.",
   },
   context: { en: "Context", fr: "Contexte" },
   problem: { en: "Problem", fr: "Problème" },
@@ -50,5 +54,4 @@ export const ui = {
   themeToggle: { en: "Toggle dark mode", fr: "Basculer le thème sombre" },
   langToggle: { en: "Lire en français", fr: "Read in English" },
   languagesLabel: { en: "Languages", fr: "Langues" },
-  footer: { en: "Built with Next.js, hosted on GitHub Pages", fr: "Construit avec Next.js, hébergé sur GitHub Pages" },
 } satisfies Record<string, T>;

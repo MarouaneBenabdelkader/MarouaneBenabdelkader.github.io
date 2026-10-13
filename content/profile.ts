@@ -10,8 +10,8 @@ export const profile = {
     fr: "Ingénieur IA et développeur full stack : systèmes agentiques, NLP, vision par ordinateur et applications web",
   },
   pitch: {
-    en: "I design and ship agentic AI workflows, RAG assistants, computer-vision pipelines and the full stack web apps around them, then put them in production with Python, TypeScript, FastAPI, PyTorch and Azure. I also build custom apps and web apps on demand.",
-    fr: "Je conçois et livre des workflows d'IA agentique, des assistants RAG, des pipelines de vision par ordinateur et les applications web full stack qui les portent, jusqu'à leur mise en production avec Python, TypeScript, FastAPI, PyTorch et Azure. Je développe aussi des applications et des applications web sur mesure, à la demande.",
+    en: "I design AI agents, RAG assistants and computer-vision pipelines, build the full stack web apps around them, and take them all the way to production with Python, TypeScript, FastAPI, Next.js, PyTorch and Azure. I also build custom apps and websites on demand, from first mockup to launch.",
+    fr: "Je conçois des agents IA, des assistants RAG et des pipelines de vision par ordinateur, je développe les applications web full stack qui les accueillent, et je les mène jusqu'en production avec Python, TypeScript, FastAPI, Next.js, PyTorch et Azure. Je réalise aussi des applications et des sites web sur mesure, de la maquette à la mise en ligne.",
   },
   location: { en: "Nice, France", fr: "Nice, France" },
   email: "benabdelkader.marouane@proton.me",

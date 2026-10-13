@@ -14,17 +14,17 @@ export const diagrams: Record<string, Diagram> = {
       { label: { en: "Extract & OCR", fr: "Extraction & OCR" }, detail: { en: "Layout-aware parsing", fr: "Analyse de mise en page" }, tools: "MinerU" },
     ],
     [
-      { label: { en: "Chunk & embed", fr: "Découpage & embeddings" }, detail: { en: "Heading context kept per chunk", fr: "Contexte des titres conservé" }, tools: "OpenAI" },
+      { label: { en: "Chunk & embed", fr: "Découpage & embeddings" }, detail: { en: "Heading context kept per chunk", fr: "Contexte des titres conservé" }, tools: "OpenAI embeddings" },
     ],
     [
       { label: { en: "Vector store", fr: "Base vectorielle" }, detail: { en: "Thematic collections", fr: "Collections thématiques" }, tools: "Supabase pgvector" },
     ],
     [
-      { label: { en: "Orientation agent", fr: "Agent d'orientation" }, detail: { en: "10 questions, deterministic score", fr: "10 questions, score déterministe" }, tools: "Free" },
-      { label: { en: "RAG expert", fr: "Expert RAG" }, detail: { en: "Cited answers + confidence", fr: "Réponses sourcées + confiance" }, tools: "Premium, n8n" },
+      { label: { en: "Orientation agent", fr: "Agent d'orientation" }, detail: { en: "3 branches, rule-based score", fr: "3 branches, score par règles" }, tools: "Express, GPT-5 nano" },
+      { label: { en: "RAG expert", fr: "Expert RAG" }, detail: { en: "Cited answers + confidence", fr: "Réponses sourcées + confiance" }, tools: "n8n AI Agent" },
     ],
     [
-      { label: { en: "Web app", fr: "Application web" }, detail: { en: "Stripe paywall or partner code", fr: "Paywall Stripe ou code partenaire" }, tools: "React" },
+      { label: { en: "Web app", fr: "Application web" }, detail: { en: "Roles, Stripe, partner codes", fr: "Rôles, Stripe, codes partenaires" }, tools: "React, Supabase Auth" },
     ],
   ],
   "technical-spec-generator": [
@@ -35,7 +35,7 @@ export const diagrams: Record<string, Diagram> = {
       { label: { en: "Manager agent", fr: "Agent Manager" }, detail: { en: "Routes mode, owns the state machine", fr: "Route le mode, pilote la machine à états" }, tools: "OpenAI tools" },
     ],
     [
-      { label: { en: "Standards RAG", fr: "RAG sur les normes" }, detail: { en: "Vector search", fr: "Recherche vectorielle" }, tools: "pgvector" },
+      { label: { en: "Standards RAG", fr: "RAG sur les normes" }, detail: { en: "35 fascicules, MinerU + LangChain", fr: "35 fascicules, MinerU + LangChain" }, tools: "pgvector" },
       { label: { en: "Web search", fr: "Recherche web" }, detail: { en: "Fresh references", fr: "Références récentes" }, tools: "Tavily" },
     ],
     [
@@ -66,7 +66,7 @@ export const diagrams: Record<string, Diagram> = {
       { label: { en: "Signals", fr: "Signaux" }, detail: { en: "Growth & buying intent", fr: "Croissance & intention d'achat" }, tools: "Apollo, Tavily" },
     ],
     [
-      { label: { en: "Decision-makers & angle", fr: "Décideurs & angle" }, detail: { en: "Top prospects only, capped", fr: "Meilleurs prospects, plafonné" }, tools: "Unipile" },
+      { label: { en: "Decision-makers & angle", fr: "Décideurs & angle" }, detail: { en: "Top prospects only, capped", fr: "Meilleurs prospects, plafonné" }, tools: "Unipile, Qdrant" },
     ],
   ],
   "payment-reminder-agent": [
@@ -81,7 +81,7 @@ export const diagrams: Record<string, Diagram> = {
       { label: { en: "Match & group", fr: "Rapprochement & regroupement" }, detail: { en: "Fuzzy client match, one email per client", fr: "Rapprochement flou, un email par client" }, tools: "RapidFuzz" },
     ],
     [
-      { label: { en: "Validation dashboard", fr: "Tableau de bord de validation" }, detail: { en: "Review, edit, approve", fr: "Relire, modifier, approuver" }, tools: "FastAPI, Next.js" },
+      { label: { en: "Validation dashboard", fr: "Tableau de bord de validation" }, detail: { en: "Review, edit, approve", fr: "Relire, modifier, approuver" }, tools: "Next.js, Supabase" },
     ],
     [
       { label: { en: "Send", fr: "Envoi" }, detail: { en: "Outlook mailbox", fr: "Boîte Outlook" }, tools: "Microsoft Graph" },
@@ -92,7 +92,7 @@ export const diagrams: Record<string, Diagram> = {
   ],
   "news-to-avatar-video": [
     [
-      { label: { en: "5 trade media", fr: "5 médias spécialisés" }, detail: { en: "Weekly window, de-duplicated", fr: "Fenêtre hebdo, dédoublonnée" }, tools: "Scrapers" },
+      { label: { en: "5 trade media", fr: "5 médias spécialisés" }, detail: { en: "Weekly window, de-duplicated", fr: "Fenêtre hebdo, dédoublonnée" }, tools: "BeautifulSoup" },
     ],
     [
       { label: { en: "Classify", fr: "Classification" }, detail: { en: "Relevance, country, audience, priority", fr: "Pertinence, pays, cible, priorité" }, tools: "GPT" },
