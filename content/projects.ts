@@ -73,8 +73,8 @@ export const projects: Project[] = [
     slug: "technical-spec-generator",
     kind: "codito",
     title: {
-      en: "AI assistant & 30-page technical-spec generator for landscape and civil engineers",
-      fr: "Assistant IA & générateur de CCTP de 30 pages pour paysagistes et ingénieurs VRD",
+      en: "AI assistant & technical-spec generator (30+ pages) for landscape and civil engineers",
+      fr: "Assistant IA & générateur de CCTP (30 pages et plus) pour paysagistes et ingénieurs VRD",
     },
     sector: { en: "Landscape architecture & civil engineering", fr: "Paysage & ingénierie VRD" },
     summary: {
@@ -87,8 +87,8 @@ export const projects: Project[] = [
       fr: "Paysagistes, ingénieurs VRD et urbanistes rédigent des CCTP de plus de 30 pages qui doivent rester cohérents avec les normes du CCTG et des fascicules.",
     },
     problem: {
-      en: "A single LLM prompt can't produce a coherent 30-page document: it truncates, drifts, and is slow and expensive. Users also need to steer the structure and edit any section afterwards.",
-      fr: "Un seul prompt ne peut pas produire un document cohérent de 30 pages : il tronque, dérive, et coûte cher en temps comme en tokens. Les utilisateurs doivent aussi piloter la structure et retoucher chaque section ensuite.",
+      en: "A single LLM prompt can't produce a coherent document of 30 pages or more: it truncates, drifts, and is slow and expensive. Users also need to steer the structure and edit any section afterwards.",
+      fr: "Un seul prompt ne peut pas produire un document cohérent de 30 pages ou plus : il tronque, dérive, et coûte cher en temps comme en tokens. Les utilisateurs doivent aussi piloter la structure et retoucher chaque section ensuite.",
     },
     built: [
       {

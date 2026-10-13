@@ -2,6 +2,7 @@ import { tr, type Lang } from "@/content/types";
 import { profile } from "@/content/profile";
 import { ui } from "@/content/ui";
 import { Chips, Section } from "./Section";
+import { Logo } from "./Logo";
 
 export function Experience({ lang }: { lang: Lang }) {
   return (
@@ -12,7 +13,18 @@ export function Experience({ lang }: { lang: Lang }) {
             key={job.company}
             className="grid gap-2 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-8"
           >
-            <p className="text-sm tabular-nums text-muted">{tr(job.dates, lang)}</p>
+            <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-4">
+              <p className="text-sm tabular-nums text-muted">{tr(job.dates, lang)}</p>
+              {job.logo && (
+                <Logo
+                  logo={job.logo}
+                  label={job.company}
+                  // Icons get a fixed height; wordmarks share an optical width of ~110px.
+                  height={job.logo.width < job.logo.height ? 48 : Math.min(24, (110 * job.logo.height) / job.logo.width)}
+                  className="text-ink opacity-80"
+                />
+              )}
+            </div>
             <div>
               <h3 className="font-display text-lg font-semibold tracking-tight">
                 {tr(job.role, lang)}, <span className="text-accent-ink">{job.company}</span>

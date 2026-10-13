@@ -1,6 +1,7 @@
 import type { T } from "./types";
+import { logos, type LogoInfo } from "@/components/Logo";
 
-type Job = { role: T; company: string; place: string; type: T; dates: T; bullets: T[] };
+type Job = { role: T; company: string; logo?: LogoInfo; place: string; type: T; dates: T; bullets: T[] };
 
 export const profile = {
   name: "Marouane Benabdelkader",
@@ -22,6 +23,7 @@ export const profile = {
     {
       role: { en: "Full Stack AI Engineer", fr: "Ingénieur IA Full Stack" },
       company: "Amadeus",
+      logo: logos.amadeus,
       place: "Villeneuve-Loubet, France",
       type: { en: "Apprenticeship", fr: "Alternance" },
       dates: { en: "Sep 2025 – Present", fr: "Sept. 2025 – Aujourd'hui" },
@@ -41,8 +43,31 @@ export const profile = {
       ],
     },
     {
+      role: { en: "Full Stack Developer", fr: "Développeur Full Stack" },
+      company: "Codito Ergo Sum",
+      logo: logos.codito,
+      place: "France",
+      type: { en: "Freelance", fr: "Freelance" },
+      dates: { en: "2025 – Present", fr: "2025 – Aujourd'hui" },
+      bullets: [
+        {
+          en: "Build AI agents, RAG assistants and automation pipelines for the agency's clients, from scoping workshops to production.",
+          fr: "Conception d'agents IA, d'assistants RAG et de pipelines d'automatisation pour les clients de l'agence, de l'atelier de cadrage à la mise en production.",
+        },
+        {
+          en: "Deliver full stack apps end to end: FastAPI and Node backends, Next.js and React frontends, Supabase, SQLite and Qdrant data layers.",
+          fr: "Livraison d'applications full stack de bout en bout : backends FastAPI et Node, frontends Next.js et React, données Supabase, SQLite et Qdrant.",
+        },
+        {
+          en: "Five projects shipped across wellbeing, civil engineering, industrial sales, construction and solar energy (see case studies above).",
+          fr: "Cinq projets livrés dans le bien-être, l'ingénierie VRD, la prospection industrielle, le BTP et l'énergie solaire (voir les études de cas ci-dessus).",
+        },
+      ],
+    },
+    {
       role: { en: "Full Stack AI Engineer", fr: "Ingénieur IA Full Stack" },
       company: "Deep2Drive",
+      logo: logos.deep2drive,
       place: "Marseille, France",
       type: { en: "Fixed-term contract", fr: "CDD" },
       dates: { en: "Feb 2025 – Aug 2025", fr: "Févr. 2025 – Août 2025" },
@@ -64,6 +89,7 @@ export const profile = {
     {
       role: { en: "NLP Developer", fr: "Développeur NLP" },
       company: "3D Smart Factory",
+      logo: logos.smartFactory,
       place: "Mohammedia, Morocco",
       type: { en: "Internship", fr: "Stage" },
       dates: { en: "Apr 2024 – Jun 2024", fr: "Avr. 2024 – Juin 2024" },
@@ -77,6 +103,7 @@ export const profile = {
     {
       role: { en: "Backend Developer", fr: "Développeur Backend" },
       company: "INNOV DS",
+      logo: logos.innovds,
       place: "Fez, Morocco",
       type: { en: "Internship", fr: "Stage" },
       dates: { en: "Apr 2023 – Jun 2023", fr: "Avr. 2023 – Juin 2023" },
@@ -84,19 +111,6 @@ export const profile = {
         {
           en: "Developed an e-commerce REST API backend with Node.js, Express.js and MongoDB.",
           fr: "Développement d'une API REST e-commerce avec Node.js, Express.js et MongoDB.",
-        },
-      ],
-    },
-    {
-      role: { en: "Full Stack Developer", fr: "Développeur Full Stack" },
-      company: "Moda Cerame",
-      place: "Fquih Ben Salah, Morocco",
-      type: { en: "Internship", fr: "Stage" },
-      dates: { en: "Jul 2022 – Aug 2022", fr: "Juil. 2022 – Août 2022" },
-      bullets: [
-        {
-          en: "Developed a web inventory management application with HTML, CSS, JavaScript and Node.js.",
-          fr: "Application web de gestion de stock en HTML, CSS, JavaScript et Node.js.",
         },
       ],
     },

@@ -3,6 +3,7 @@ import { tr, type Lang, type Project } from "@/content/types";
 import { projects } from "@/content/projects";
 import { ui } from "@/content/ui";
 import { Chips, Section } from "./Section";
+import { Logo, logos } from "./Logo";
 
 function ProjectRow({ project, lang }: { project: Project; lang: Lang }) {
   const href = `/${lang}/work/${project.slug}/`;
@@ -35,8 +36,13 @@ export function Work({ lang }: { lang: Lang }) {
       <p className="max-w-2xl text-lg leading-relaxed">{tr(ui.workIntro, lang)}</p>
 
       <div className="mt-12">
-        <h3 className="font-display text-lg font-bold">{tr(ui.coditoTitle, lang)}</h3>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">{tr(ui.coditoIntro, lang)}</p>
+        <div className="flex items-start gap-4">
+          <Logo logo={logos.codito} label="Codito Ergo Sum" height={52} className="text-accent" />
+          <div>
+            <h3 className="font-display text-lg font-bold">{tr(ui.coditoTitle, lang)}</h3>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">{tr(ui.coditoIntro, lang)}</p>
+          </div>
+        </div>
         <ul className="mt-4">
           {codito.map((p) => (
             <ProjectRow key={p.slug} project={p} lang={lang} />
