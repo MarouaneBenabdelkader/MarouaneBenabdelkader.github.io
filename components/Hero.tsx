@@ -55,7 +55,8 @@ const stagger = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 export function Hero({ lang }: { lang: Lang }) {
   return (
-    <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 sm:px-8 md:grid-cols-[1.25fr_1fr] md:pb-24 md:pt-20">
+    // Fills one screen below the 4rem header, content centred, so the buttons sit above the fold on load.
+    <div className="mx-auto grid max-w-6xl content-center items-center gap-10 px-4 pb-12 pt-8 sm:px-8 md:min-h-[calc(100svh-4rem)] md:grid-cols-[1.25fr_1fr] md:gap-12 md:py-8">
       <div>
         <ul className="rise space-y-1.5 text-sm text-muted" style={stagger(0)}>
           {[ui.status, ui.availability].map((line) => (
@@ -66,7 +67,7 @@ export function Hero({ lang }: { lang: Lang }) {
           ))}
         </ul>
         <h1
-          className="rise mt-6 font-display text-[clamp(2.75rem,8vw,5.5rem)] font-extrabold leading-[0.95] tracking-[-0.035em]"
+          className="rise mt-6 font-display text-[clamp(2.75rem,min(8vw,10.5svh),5.5rem)] font-extrabold leading-[0.95] tracking-[-0.035em]"
           style={stagger(1)}
         >
           Marouane
