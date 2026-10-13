@@ -19,7 +19,10 @@ function MiniFlow({ slug, lang }: { slug: string; lang: Lang }) {
               <path d="M2 2l4 4-4 4" />
             </svg>
           )}
-          <span className="flow-chip rounded-md bg-accent-wash px-2 py-0.5 font-medium text-accent-ink">{tr(step[0].label, lang)}</span>
+          <span className="flow-chip flex items-center gap-1.5 rounded-md bg-accent-wash px-2 py-0.5 font-medium text-accent-ink">
+            <span className="size-1.5 rounded-full" style={{ background: `var(--kind-${step[0].kind})` }} />
+            {tr(step[0].label, lang)}
+          </span>
         </li>
       ))}
     </ol>

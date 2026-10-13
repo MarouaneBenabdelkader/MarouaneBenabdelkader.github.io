@@ -30,7 +30,7 @@ export function Chips({ items }: { items: string[] }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
       {items.map((s) => (
-        <li key={s} className="rounded-full border border-line px-2.5 py-0.5 text-xs text-muted">
+        <li key={s} className="rounded-full border border-line bg-raised px-2.5 py-0.5 text-[0.8125rem] text-ink/85">
           {s}
         </li>
       ))}

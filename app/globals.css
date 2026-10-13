@@ -6,7 +6,13 @@
   --paper: #f6f8f7;
   --paper-raised: #ffffff;
   --ink: #13211f;
-  --muted: #5a6967;
+  --muted: #4d5c5a;
+  /* Diagram roles */
+  --kind-io: #6b7a78;
+  --kind-ai: #0b8a7c;
+  --kind-logic: #b26b00;
+  --kind-data: #6d5bd0;
+  --kind-app: #2f6fd0;
   --line: #d6dedc;
   --accent: #0b8a7c;
   --accent-ink: #076a5f;
@@ -18,7 +24,12 @@
   --paper: #101817;
   --paper-raised: #16211f;
   --ink: #e4edeb;
-  --muted: #97a8a5;
+  --muted: #adbcb9;
+  --kind-io: #9aaba8;
+  --kind-ai: #41c7b6;
+  --kind-logic: #f0b44c;
+  --kind-data: #a99bf5;
+  --kind-app: #7fb0ff;
   --line: #2a3a37;
   --accent: #41c7b6;
   --accent-ink: #6fdacb;
@@ -123,6 +134,14 @@ a {
 @keyframes dash-flow { to { stroke-dashoffset: -16; } }
 .flow-line { stroke-dasharray: 4 4; animation: dash-flow 0.9s linear infinite; }
 
+/* Diagram rail between numbered steps: dashes flow downward. */
+@keyframes rail-flow { to { background-position: 0 10px; } }
+.rail {
+  background-image: linear-gradient(var(--accent) 60%, transparent 0);
+  background-size: 2px 10px;
+  animation: rail-flow 0.8s linear infinite;
+}
+
 /* Portrait follows the pointer slightly (values set by HeroPortrait). */
 .tilt {
   transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--s, 1));
@@ -133,6 +152,7 @@ a {
   html { scroll-behavior: auto; }
   .draw .wire { animation: none; stroke-dashoffset: 0; }
   .signal, .ping::after, .flow-line { display: none; }
+  .rail { animation: none; }
   .js [data-reveal] { opacity: 1; transform: none; transition: none; }
   .rise, .group:hover .flow-chip { animation: none; }
   .tilt { transform: none; }

@@ -30,7 +30,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   return (
     <section data-reveal className="grid gap-4 border-t border-line py-10 md:grid-cols-[12rem_1fr] md:gap-12">
       <h2 className="font-display text-lg font-bold">{title}</h2>
-      <div className="min-w-0">{children}</div>
+      <div className="min-w-0 text-[1.0625rem]">{children}</div>
     </section>
   );
 }
@@ -62,8 +62,9 @@ export default async function CaseStudy({ params }: { params: Params }) {
         <Link href={`/${lang}/#work`} className="text-sm text-muted hover:text-ink">
           {tr(ui.backHome, lang)}
         </Link>
-        <p className="mt-8 text-sm text-muted">
-          {tr(project.kind === "codito" ? ui.withCodito : ui.directClient, lang)}, {tr(project.sector, lang).toLowerCase()}
+        <p className="mt-8 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <span>{tr(project.kind === "codito" ? ui.withCodito : ui.directClient, lang)}</span>
+          <span className="rounded-full bg-accent-wash px-2.5 py-0.5 font-semibold text-accent-ink">{tr(project.sector, lang)}</span>
         </p>
         <h1 className="mt-3 max-w-4xl font-display text-[clamp(2rem,5vw,3.5rem)] font-extrabold leading-[1.02] tracking-[-0.03em]">
           {tr(project.title, lang)}
@@ -102,7 +103,7 @@ export default async function CaseStudy({ params }: { params: Params }) {
       <Block title={tr(ui.decisions, lang)}>
         <dl className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
           {project.decisions.map((d) => (
-            <div key={d.title.en}>
+            <div key={d.title.en} className="border-l-2 border-accent pl-4">
               <dt className="font-display text-lg font-semibold leading-snug">{tr(d.title, lang)}</dt>
               <dd className="mt-2 leading-relaxed text-muted">{tr(d.body, lang)}</dd>
             </div>
