@@ -13,16 +13,16 @@ export function Pipeline({ diagram, lang, label }: { diagram: Diagram; lang: Lan
     <figure aria-label={label} className="rounded-2xl border border-line bg-raised p-4 sm:p-8">
       <ol className="flex flex-col items-stretch">
         {diagram.map((step, i) => (
-          <li key={i} className="flex flex-col items-center">
+          <li key={i} data-reveal style={{ "--i": i } as React.CSSProperties} className="flex flex-col items-center">
             {i > 0 && (
               <svg viewBox="0 0 12 28" className="h-7 w-3 text-accent" aria-hidden>
-                <path d="M6 0V24" stroke="currentColor" strokeWidth="1.5" />
+                <path className="flow-line" d="M6 0V24" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M2 20l4 5 4-5" stroke="currentColor" strokeWidth="1.5" fill="none" />
               </svg>
             )}
             <div className={`grid w-full gap-3 ${COLS[step.length] ?? "max-w-sm"}`}>
               {step.map((stage) => (
-                <div key={stage.label.en} className="rounded-xl border border-line bg-paper px-4 py-3 text-center">
+                <div key={stage.label.en} className="rounded-xl border border-line bg-paper px-4 py-3 text-center transition-[transform,border-color] hover:-translate-y-0.5 hover:border-accent">
                   <p className="font-display font-semibold leading-snug">{tr(stage.label, lang)}</p>
                   <p className="mt-0.5 text-sm leading-snug text-muted">{tr(stage.detail, lang)}</p>
                   {stage.tools && <p className="mt-1.5 text-xs font-semibold text-accent-ink">{stage.tools}</p>}

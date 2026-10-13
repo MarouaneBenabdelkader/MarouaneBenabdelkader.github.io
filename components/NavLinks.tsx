@@ -20,7 +20,15 @@ export function NavLinks({ lang, items }: { lang: Lang; items: { id: string; lab
       { rootMargin: "-30% 0px -65% 0px" },
     );
     sections.forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
+    // Above the first section (the hero), nothing is current.
+    const onScroll = () => {
+      if (window.scrollY + window.innerHeight * 0.3 < sections[0].offsetTop) setActive(null);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [items]);
 
   return (

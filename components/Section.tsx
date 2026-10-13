@@ -14,7 +14,7 @@ export function Section({
     <section id={id} aria-labelledby={`${id}-title`} className="border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-8 md:grid-cols-[14rem_1fr] md:gap-12 md:py-24">
         {/* Title and aside stick as one block so a wrapped title never overlaps the aside. */}
-        <div className="self-start md:sticky md:top-24">
+        <div data-reveal className="self-start md:sticky md:top-24">
           <h2 id={`${id}-title`} className="font-display text-2xl font-bold tracking-tight">
             {title}
           </h2>

@@ -7,6 +7,7 @@ import { LANGS, isLang, tr } from "@/content/types";
 import { profile } from "@/content/profile";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { RevealOnScroll } from "@/components/Motion";
 
 export const dynamicParams = false;
 export const generateStaticParams = () => LANGS.map((lang) => ({ lang }));
@@ -50,6 +51,7 @@ export default async function LangLayout({
         <Header lang={lang} />
         <main id="main">{children}</main>
         <Footer lang={lang} />
+        <RevealOnScroll />
       </body>
     </html>
   );

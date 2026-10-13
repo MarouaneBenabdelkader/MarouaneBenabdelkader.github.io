@@ -11,6 +11,7 @@ export function Experience({ lang }: { lang: Lang }) {
         {profile.experience.map((job) => (
           <li
             key={job.company}
+            data-reveal
             className="grid gap-2 border-t border-line py-7 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-8"
           >
             <div className="flex items-center gap-4 sm:flex-col sm:items-start sm:gap-4">
@@ -51,7 +52,7 @@ export function SwiftServe({ lang }: { lang: Lang }) {
   const s = profile.swiftserve;
   return (
     <Section id="swiftserve" title={tr(ui.personalTitle, lang)}>
-      <div className="rounded-2xl border border-line bg-raised p-6 sm:p-8">
+      <div data-reveal className="rounded-2xl border border-line bg-raised p-6 transition-[transform,box-shadow] hover:-translate-y-1 hover:shadow-xl hover:shadow-black/10 sm:p-8">
         <h3 className="font-display text-2xl font-bold tracking-tight">{s.title}</h3>
         <p className="mt-1 font-medium text-accent-ink">{tr(s.tagline, lang)}</p>
         <p className="mt-4 max-w-2xl leading-relaxed text-muted">{tr(s.summary, lang)}</p>
@@ -77,15 +78,15 @@ export function Skills({ lang }: { lang: Lang }) {
   return (
     <Section id="skills" title={tr(ui.skillsTitle, lang)}>
       <dl className="grid gap-x-10 gap-y-7 sm:grid-cols-2">
-        {profile.skills.map((g) => (
-          <div key={g.group.en}>
+        {profile.skills.map((g, i) => (
+          <div key={g.group.en} data-reveal style={{ "--i": i % 2 } as React.CSSProperties}>
             <dt className="font-display font-semibold">{tr(g.group, lang)}</dt>
             <dd className="mt-2.5">
               <Chips items={g.items} />
             </dd>
           </div>
         ))}
-        <div>
+        <div data-reveal style={{ "--i": 1 } as React.CSSProperties}>
           <dt className="font-display font-semibold">{tr(ui.languagesLabel, lang)}</dt>
           <dd className="mt-1 leading-relaxed text-muted">{tr(profile.languages, lang)}</dd>
         </div>
@@ -99,7 +100,7 @@ export function Education({ lang }: { lang: Lang }) {
     <Section id="education" title={tr(ui.educationTitle, lang)}>
       <ol>
         {profile.education.map((e) => (
-          <li key={e.school} className="grid gap-1 border-t border-line py-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-8">
+          <li key={e.school} data-reveal className="grid gap-1 border-t border-line py-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-8">
             <p className="text-sm tabular-nums text-muted">{e.dates}</p>
             <div>
               <p className="font-semibold">{tr(e.degree, lang)}</p>
@@ -119,10 +120,12 @@ export function Contact({ lang }: { lang: Lang }) {
   ];
   return (
     <Section id="contact" title={tr(ui.navContact, lang)}>
-      <h3 className="font-display text-[clamp(2rem,5vw,3.5rem)] font-extrabold leading-none tracking-[-0.03em]">
+      <h3 data-reveal className="font-display text-[clamp(2rem,5vw,3.5rem)] font-extrabold leading-none tracking-[-0.03em]">
         {tr(ui.contactTitle, lang)}
       </h3>
-      <p className="mt-5 max-w-xl leading-relaxed text-muted">{tr(ui.contactIntro, lang)}</p>
+      <p data-reveal style={{ "--i": 1 } as React.CSSProperties} className="mt-5 max-w-xl leading-relaxed text-muted">
+        {tr(ui.contactIntro, lang)}
+      </p>
       <a
         href={`mailto:${profile.email}`}
         className="mt-8 inline-block break-all font-display text-xl font-semibold text-accent-ink underline sm:text-2xl"

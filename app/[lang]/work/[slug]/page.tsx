@@ -7,6 +7,7 @@ import { diagrams } from "@/content/diagrams";
 import { ui } from "@/content/ui";
 import { Chips } from "@/components/Section";
 import { Pipeline } from "@/components/Pipeline";
+import { ScrollProgress } from "@/components/Motion";
 
 type Params = Promise<{ lang: string; slug: string }>;
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-4 border-t border-line py-10 md:grid-cols-[12rem_1fr] md:gap-12">
+    <section data-reveal className="grid gap-4 border-t border-line py-10 md:grid-cols-[12rem_1fr] md:gap-12">
       <h2 className="font-display text-lg font-bold">{title}</h2>
       <div className="min-w-0">{children}</div>
     </section>
@@ -39,7 +40,7 @@ function Neighbour({ lang, index, dir }: { lang: Lang; index: number; dir: "prev
   return (
     <Link
       href={`/${lang}/work/${p.slug}/`}
-      className={`group block rounded-2xl border border-line p-5 transition-colors hover:border-ink ${dir === "next" ? "sm:text-right" : ""}`}
+      className={`group block rounded-2xl border border-line p-5 transition-[transform,border-color] hover:-translate-y-0.5 hover:border-ink ${dir === "next" ? "sm:text-right" : ""}`}
     >
       <span className="text-sm text-muted">{tr(dir === "next" ? ui.next : ui.previous, lang)}</span>
       <span className="mt-1 block font-display font-semibold leading-snug group-hover:text-accent-ink">{tr(p.title, lang)}</span>
@@ -56,7 +57,8 @@ export default async function CaseStudy({ params }: { params: Params }) {
 
   return (
     <article className="mx-auto max-w-6xl px-4 pb-20 sm:px-8">
-      <header className="pb-12 pt-10 md:pt-16">
+      <ScrollProgress />
+      <header className="rise pb-12 pt-10 md:pt-16">
         <Link href={`/${lang}/#work`} className="text-sm text-muted hover:text-ink">
           {tr(ui.backHome, lang)}
         </Link>
@@ -114,7 +116,7 @@ export default async function CaseStudy({ params }: { params: Params }) {
         </p>
       </Block>
 
-      <nav aria-label={tr(ui.backHome, lang)} className="grid gap-4 border-t border-line pt-10 sm:grid-cols-2">
+      <nav data-reveal aria-label={tr(ui.backHome, lang)} className="grid gap-4 border-t border-line pt-10 sm:grid-cols-2">
         <Neighbour lang={lang} index={index - 1} dir="previous" />
         <Neighbour lang={lang} index={index + 1} dir="next" />
       </nav>
