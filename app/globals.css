@@ -74,17 +74,15 @@ a {
   from { stroke-dashoffset: 1; }
   to { stroke-dashoffset: 0; }
 }
+/* All four wires draw together, so none ever looks cut off mid-load. */
 .draw .wire {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: draw 1.4s cubic-bezier(0.6, 0, 0.2, 1) forwards;
+  animation: draw 1s cubic-bezier(0.6, 0, 0.2, 1) 0.2s forwards;
 }
-.draw .wire:nth-of-type(2) { animation-delay: 0.3s; }
-.draw .wire:nth-of-type(3) { animation-delay: 0.6s; }
-.draw .wire:nth-of-type(4) { animation-delay: 0.9s; }
 
-/* Signals travelling along the hero wires once they are drawn. */
-.signal { opacity: 0; animation: signal-in 0.4s ease-out 1.6s forwards; }
+/* Joints and travelling signals appear once the wires are drawn. */
+.signal { opacity: 0; animation: signal-in 0.4s ease-out 1.15s forwards; }
 @keyframes signal-in { to { opacity: 1; } }
 
 /* Status dots breathe. */

@@ -30,11 +30,12 @@ function Schematic({ lang }: { lang: Lang }) {
           <path key={d} id={`wire-${i}`} className="wire" pathLength={1} d={d} stroke="currentColor" strokeWidth="1.5" />
         ))}
         {[[70, 140], [330, 140], [70, 265], [330, 265]].map(([cx, cy]) => (
-          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" fill="currentColor" />
+          <circle key={`${cx}-${cy}`} className="signal" cx={cx} cy={cy} r="3.5" fill="currentColor" />
         ))}
+        {/* Negative begin offsets start every signal mid-path at t=0, so none waits at the SVG origin. */}
         {wires.map((d, i) => (
           <circle key={`signal-${d}`} className="signal" r="3" fill="currentColor">
-            <animateMotion dur="2.8s" begin={`${1.8 + i * 0.7}s`} repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
+            <animateMotion dur="2.8s" begin={`${-i * 0.7}s`} repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
               <mpath href={`#wire-${i}`} />
             </animateMotion>
           </circle>
