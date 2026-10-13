@@ -19,8 +19,8 @@ export const ui = {
   },
   coditoTitle: { en: "With Codito Ergo Sum", fr: "Avec Codito Ergo Sum" },
   coditoIntro: {
-    en: "Built in collaboration with the Codito Ergo Sum agency for its clients. Client names are withheld; the engineering is mine to show.",
-    fr: "Réalisés en collaboration avec l'agence Codito Ergo Sum pour ses clients. Les noms des clients restent confidentiels ; l'ingénierie, elle, peut être montrée.",
+    en: "Built in collaboration with the Codito Ergo Sum agency for its clients. Client names are kept confidential, but the engineering behind each project is shown here.",
+    fr: "Réalisés en collaboration avec l'agence Codito Ergo Sum pour ses clients. Les noms des clients restent confidentiels, mais l'ingénierie de chaque projet est présentée ici.",
   },
   directTitle: { en: "Direct clients", fr: "Clients directs" },
   readCase: { en: "Read case study", fr: "Lire l'étude de cas" },
