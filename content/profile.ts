@@ -15,7 +15,7 @@ export const profile = {
   },
   location: { en: "Nice, France", fr: "Nice, France" },
   email: "benabdelkader.marouane@proton.me",
-  linkedin: "https://www.linkedin.com/in/marouanebenabdelkader-8b0793258",
+  linkedin: "https://www.linkedin.com/in/marouanebenabdelkader/",
   github: "https://github.com/MarouaneBenabdelkader",
   cv: "/Marouane_Benabdelkader_Resume.pdf",
 

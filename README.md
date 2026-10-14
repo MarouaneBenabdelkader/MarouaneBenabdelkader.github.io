@@ -41,4 +41,4 @@ Every text field has an `en` and a `fr` version. Pushing to `main` builds and de
 ## Contact
 
 - Email: [benabdelkader.marouane@proton.me](mailto:benabdelkader.marouane@proton.me)
-- LinkedIn: [marouanebenabdelkader](https://www.linkedin.com/in/marouanebenabdelkader-8b0793258)
+- LinkedIn: [marouanebenabdelkader](https://www.linkedin.com/in/marouanebenabdelkader/)
