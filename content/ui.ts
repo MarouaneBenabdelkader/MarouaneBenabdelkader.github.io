@@ -2,6 +2,7 @@ import type { T } from "./types";
 
 export const ui = {
   navWork: { en: "Work", fr: "Projets" },
+  navBook: { en: "The book", fr: "Le livre" },
   navExperience: { en: "Experience", fr: "Expérience" },
   navSkills: { en: "Skills", fr: "Compétences" },
   navContact: { en: "Contact", fr: "Contact" },

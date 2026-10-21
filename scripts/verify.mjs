@@ -36,6 +36,7 @@ for (const lang of LANGS) {
   const homeHtml = read(home);
   if (!homeHtml.includes(`<html lang="${lang}"`)) fail(`${home}: wrong <html lang>`);
   if (!homeHtml.includes(`href="/${other}/"`)) fail(`${home}: no language toggle to /${other}/`);
+  if (!homeHtml.includes(`href="/${lang}/book/"`)) fail(`${home}: navbar has no link to the book`);
   const bookPage = join(OUT, lang, "book", "index.html");
   const bookHtml = existsSync(bookPage) ? read(bookPage) : "";
   if (!bookHtml) fail(`missing ${bookPage}`);

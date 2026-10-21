@@ -9,6 +9,7 @@ import { MobileMenu } from "./MobileMenu";
 export function Header({ lang }: { lang: Lang }) {
   const nav = [
     { id: "work", label: tr(ui.navWork, lang) },
+    { id: "book", label: tr(ui.navBook, lang), href: `/${lang}/book/` },
     { id: "experience", label: tr(ui.navExperience, lang) },
     { id: "skills", label: tr(ui.navSkills, lang) },
     { id: "contact", label: tr(ui.navContact, lang) },

@@ -2,9 +2,10 @@
 
 import { useRef } from "react";
 import type { Lang } from "@/content/types";
+import type { NavItem } from "./NavLinks";
 
 /** Phone-width menu: a native disclosure that closes once a link is chosen. */
-export function MobileMenu({ lang, label, items }: { lang: Lang; label: string; items: { id: string; label: string }[] }) {
+export function MobileMenu({ lang, label, items }: { lang: Lang; label: string; items: NavItem[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
   return (
     <details ref={ref} className="group relative md:hidden">
@@ -23,7 +24,7 @@ export function MobileMenu({ lang, label, items }: { lang: Lang; label: string; 
         {items.map((n) => (
           <a
             key={n.id}
-            href={`/${lang}/#${n.id}`}
+            href={n.href ?? `/${lang}/#${n.id}`}
             onClick={() => ref.current?.removeAttribute("open")}
             className="block rounded-xl px-3 py-2.5 text-sm hover:bg-accent-wash"
           >
