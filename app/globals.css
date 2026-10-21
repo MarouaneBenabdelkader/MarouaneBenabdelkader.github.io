@@ -142,6 +142,28 @@ a {
   animation: rail-flow 0.8s linear infinite;
 }
 
+/* The 3D book's stage. In the light theme it is a pale, misty room with a soft glow behind the
+   book; in the dark theme it is night, a deep teal glow fading to black at the edges. */
+.stage {
+  color: var(--ink);
+  background: radial-gradient(ellipse 70% 65% at 50% 42%, #ffffff 0%, #e9f0ee 55%, #d3dfdb 100%);
+}
+:root[data-theme="dark"] .stage {
+  --paper: #060c0b;
+  --paper-raised: #0f1a18;
+  --ink: #e4edeb;
+  --muted: #a9bab6;
+  --line: #24403b;
+  --accent: #41c7b6;
+  --accent-ink: #6fdacb;
+  --accent-wash: #173430;
+  color: var(--ink);
+  background: radial-gradient(ellipse 70% 65% at 50% 42%, #0f2522 0%, #071010 55%, #020505 100%);
+}
+
+/* The book fades in while it rises into place in 3D. */
+@keyframes book-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* Portrait follows the pointer slightly (values set by HeroPortrait). */
 .tilt {
   transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--s, 1));
@@ -156,4 +178,5 @@ a {
   .js [data-reveal] { opacity: 1; transform: none; transition: none; }
   .rise, .group:hover .flow-chip { animation: none; }
   .tilt { transform: none; }
+  [class*="animate-[book-in"] { animation: none !important; }
 }

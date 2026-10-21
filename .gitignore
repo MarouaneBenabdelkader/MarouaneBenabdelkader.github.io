@@ -14,3 +14,10 @@ docs/
 /3dsmart.png
 /innovds.png
 /image.png
+
+# Local secrets
+.env
+.env.*
+
+# Design references (local only)
+inspiration/

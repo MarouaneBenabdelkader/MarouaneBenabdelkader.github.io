@@ -9,11 +9,12 @@ Personal portfolio of a full stack AI engineer working on agentic systems, NLP a
 - Bilingual: `/en/` and `/fr/` routes. The language switch keeps you on the same page, and `/` redirects based on the browser language
 - Light and dark themes that follow the system setting, with a manual toggle
 - One case-study page per project, each with an architecture diagram
+- A 3D book at `/en/book/` and `/fr/book/`: one project per spread, with pages that curl as they turn (React Three Fiber). Illustrations and cover art were generated with Nano Banana Pro (Gemini)
 - Fully static export hosted on GitHub Pages
 
 ## Tech stack
 
-Next.js 15 (App Router, `output: "export"`), React 19, TypeScript and Tailwind CSS v4, deployed with GitHub Actions.
+Next.js 15 (App Router, `output: "export"`), React 19, TypeScript and Tailwind CSS v4, with three.js / React Three Fiber for the book, deployed with GitHub Actions.
 
 ## Development
 
@@ -35,6 +36,7 @@ All text lives in `content/`:
 | `projects.ts` | Freelance case studies |
 | `diagrams.ts` | Architecture diagram for each case study |
 | `ui.ts` | Interface strings |
+| `book.ts` | Strings for the 3D book (its pages are drawn from `projects.ts` and `profile.ts`) |
 
 Every text field has an `en` and a `fr` version. Pushing to `main` builds and deploys the site automatically.
 

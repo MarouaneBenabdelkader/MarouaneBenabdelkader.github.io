@@ -36,8 +36,17 @@ for (const lang of LANGS) {
   const homeHtml = read(home);
   if (!homeHtml.includes(`<html lang="${lang}"`)) fail(`${home}: wrong <html lang>`);
   if (!homeHtml.includes(`href="/${other}/"`)) fail(`${home}: no language toggle to /${other}/`);
+  const bookPage = join(OUT, lang, "book", "index.html");
+  const bookHtml = existsSync(bookPage) ? read(bookPage) : "";
+  if (!bookHtml) fail(`missing ${bookPage}`);
+  else {
+    if (!bookHtml.includes(`<html lang="${lang}"`)) fail(`${bookPage}: wrong <html lang>`);
+    if (!bookHtml.includes(`href="/${other}/book/"`)) fail(`${bookPage}: language toggle does not stay on the book`);
+  }
   for (const slug of SLUGS) {
     if (!homeHtml.includes(`href="/${lang}/work/${slug}/"`)) fail(`${home}: no link to case study ${slug}`);
+    if (bookHtml && !bookHtml.includes(`href="/${lang}/work/${slug}/"`)) fail(`${bookPage}: contents has no link to ${slug}`);
+    if (!existsSync(join(OUT, "book", "dark", `${slug}.jpg`)) || !existsSync(join(OUT, "book", "light", `${slug}.jpg`))) fail(`missing book illustration for ${slug}`);
     const page = join(OUT, lang, "work", slug, "index.html");
     if (!existsSync(page)) { fail(`missing ${page}`); continue; }
     const html = read(page);
@@ -59,4 +68,4 @@ if (failures.length) {
   console.error(`FAIL (${failures.length}):\n- ` + failures.slice(0, 40).join("\n- "));
   process.exit(1);
 }
-console.log(`PASS: ${LANGS.length * (SLUGS.length + 1) + 1} pages, ${textFiles.length} files scanned`);
+console.log(`PASS: ${LANGS.length * (SLUGS.length + 2) + 1} pages, ${textFiles.length} files scanned`);
