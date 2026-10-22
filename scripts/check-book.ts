@@ -1,6 +1,6 @@
 // Checks the book's page stacking: a page being turned must never sink below the sheets it
 // is leaving or landing on, or their content flashes through it at the start or end of a turn.
-import { activeChapter, BOOK_UNTIL, CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
+import { activeChapter, BOOK_UNTIL, CHAPTERS, departure, spiralPoint, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
 import { BEND_SHAPE, boneTwist, bowFactor, bowOverTurn, OPEN_SHAPE, PAGE_HEIGHT, PAGE_SEGMENTS, PAGE_WIDTH, sheetHeight, STACK_GAP, togetherDelay, TURN_BEND, TURN_LIFT } from "../components/book/stack";
 
 const SHEETS = 8;
@@ -182,6 +182,16 @@ for (let step = 1; step < 100; step++) {
   }
   if (seen.join(",") !== Array.from({ length: CHAPTERS }, (_, i) => i).join(",")) story.push(`chapters shown out of order: ${seen.join(",")}`);
   if (phaseAt(1).focus !== CHAPTERS) story.push("the thread does not reach its end");
+  // On the spiral, the chapter in view is always the one at the front, nearest the reader.
+  for (let k = 0; k <= 200; k++) {
+    const p = phaseAt(0.34 + (k / 200) * 0.66);
+    const i = activeChapter(p);
+    if (i === null) continue;
+    const front = spiralPoint(i, p.focus)[2];
+    for (let c = 0; c < CHAPTERS; c++) {
+      if (c !== i && spiralPoint(c, p.focus)[2] > front) story.push(`chapter ${c} is in front of chapter ${i}, the one in view`);
+    }
+  }
   // While it is still a book, no chapter has left it: nothing floats beside the book or in front
   // of it to catch a tap meant for the cover.
   for (let k = 0; k <= 60; k++) {

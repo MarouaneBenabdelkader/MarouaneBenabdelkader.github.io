@@ -188,7 +188,9 @@ export function BookExperience({ content, covers, ui }: BookProps) {
         setPage(back);
       }
       const phase = phaseAt(s);
-      const chapter = activeChapter(phase);
+      // Between two chapters the panel keeps the one leaving until the next has arrived, and the
+      // lantern hint only shows before any chapter has left.
+      const chapter = activeChapter(phase) ?? (phase.chapters > 0.02 && phase.focus < 5.5 ? Math.min(5, Math.floor(phase.focus)) : null);
       const next: Stage =
         s <= BOOK_UNTIL ? { kind: "book" } : chapter !== null ? { kind: "chapter", index: chapter } : phase.focus > 5.5 ? { kind: "end" } : { kind: "lantern" };
       if (!sameStage(next, stageRef.current)) {

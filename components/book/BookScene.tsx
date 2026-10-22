@@ -6,7 +6,7 @@ import { easing } from "maath";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { BookTheme, SheetFaces } from "./pages";
-import { CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt, smooth, threadAt, threadPoint, type Phase } from "./story";
+import { CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt, smooth, spiralFacing, spiralPoint, SPIRAL_FRONT, SPIRAL_RADIUS, SPIRAL_RISE, SPIRAL_STEP, type Phase } from "./story";
 import { BEND_SHAPE, OPEN_SHAPE, PAGE_HEIGHT, PAGE_WIDTH, PAGE_SEGMENTS, TURN_BEND, boneTwist, bowFactor, bowOverTurn, sheetHeight, togetherDelay } from "./stack";
 
 /**
@@ -493,28 +493,32 @@ function Leaves({ phase, theme }: { phase: React.RefObject<Phase>; theme: BookTh
   return <instancedMesh ref={ref} args={[geometry, material, LEAVES]} frustumCulled={false} />;
 }
 
-/** Moves the whole scene so the chapter in view sits beside its panel as the thread unrolls. */
+/**
+ * Frames the scene: once the chapters leave, everything shifts so the spiral's front sits beside
+ * the chapter panel (left of centre on wide screens, above the panel on phones). The view never
+ * travels; the spiral turns instead.
+ */
 function World({ phase, children }: { phase: React.RefObject<Phase>; children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null!);
   const { size } = useThree();
-  useFrame(() => {
-    const p = phase.current;
-    const k = smooth(p.chapters, 0, 0.1);
+  useFrame((_, delta) => {
+    const k = smooth(phase.current.chapters, 0, 0.1);
     const portrait = size.width / size.height < 0.85;
-    const [x, y, z] = threadAt(p.focus);
-    // Desktop: the page sits left of centre with its panel on the right. Phones: above the panel.
-    const offset = portrait ? [0, 0.3] : [-0.3, 0];
-    ref.current.position.set(k * (offset[0] - x), k * (offset[1] - y), -k * z);
+    const [ox, oy] = portrait ? [0, 0.45] : [-0.55, 0.05];
+    easing.damp3(ref.current.position, [k * ox, k * oy, 0], 0.35, delta);
   });
   return <group ref={ref}>{children}</group>;
 }
 
-const CARD_W = 1.6;
+const CARD_W = 1.5;
 const CARD_H = CARD_W / 0.7485;
+// Where a chapter page sets off from: the lantern, drawn back below the stage.
+const LANTERN_SPOT = new THREE.Vector3(0, -1.2, -2.2);
 
 /**
- * The six chapters leaving the lantern: each page flies out along an arc to its place on a
- * glowing thread that winds away from the book, with a lit point at each stop and one at the end.
+ * The six chapters on their spiral. Each page leaves the lantern along an arc to its place on the
+ * spiral, turning to face the reader as it goes; scrolling then turns the spiral so each chapter
+ * swings to the front in turn. A thin thread runs through them, like the cord of a binding.
  */
 function Constellation({
   faces,
@@ -529,24 +533,34 @@ function Constellation({
 }) {
   const dark = theme === "dark";
   const cards = useRef<(THREE.Mesh | null)[]>([]);
-  const nodes = useRef<(THREE.Mesh | null)[]>([]);
-  const thread = useMemo(() => {
-    const pts = [new THREE.Vector3(0, 0, 0), ...Array.from({ length: CHAPTERS + 1 }, (_, i) => new THREE.Vector3(...threadPoint(i)))];
-    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 420, 0.009, 6);
+  const spiral = useRef<THREE.Group>(null!);
+  const threadMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const nodeMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const target = useMemo(() => new THREE.Vector3(), []);
+
+  // The thread and its nodes are built once around the spiral's axis at focus 0; turning and
+  // raising the group by the focus moves them exactly as spiralPoint moves the pages.
+  const { thread, count } = useMemo(() => {
+    const pts: THREE.Vector3[] = [];
+    for (let t = -0.6; t <= CHAPTERS + 0.6; t += 0.05) {
+      const a = -t * SPIRAL_STEP;
+      pts.push(new THREE.Vector3(SPIRAL_RADIUS * Math.sin(a), -t * SPIRAL_RISE, SPIRAL_RADIUS * Math.cos(a)));
+    }
+    const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 600, 0.006, 6);
+    return { thread: g, count: g.index?.count ?? 0 };
   }, []);
   useEffect(() => () => thread.dispose(), [thread]);
-  const threadMat = useRef<THREE.MeshBasicMaterial>(null!);
-  const v = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const p = phase.current;
-    // Cards sit in the Constellation group, inside World: the World group is what moves.
-    const world = cards.current[0]?.parent?.parent;
-    const worldZ = world ? world.position.z : 0;
-    // The thread draws itself just ahead of the view.
-    const reveal = p.chapters > 0 ? Math.min(1, (p.focus + 1.6) / (CHAPTERS + 1)) : 0;
-    thread.setDrawRange(0, Math.floor((thread.index?.count ?? 0) * reveal));
-    threadMat.current.opacity = Math.min(0.85, p.chapters * 12);
+    const f = p.focus;
+    // Turn and raise the thread with the focus; its axis sits behind the front of the spiral.
+    spiral.current.position.set(0, f * SPIRAL_RISE, SPIRAL_FRONT - SPIRAL_RADIUS);
+    spiral.current.rotation.y = f * SPIRAL_STEP;
+    const reveal = p.chapters > 0 ? Math.min(1, (f + 1.8) / (CHAPTERS + 1.2)) : 0;
+    thread.setDrawRange(0, Math.floor(count * reveal));
+    easing.damp(threadMat.current, "opacity", p.chapters > 0.01 ? (dark ? 0.55 : 0.5) : 0, 0.3, delta);
+    nodeMat.current.opacity = threadMat.current.opacity * 1.6;
 
     for (let i = 0; i < CHAPTERS; i++) {
       const card = cards.current[i];
@@ -554,43 +568,44 @@ function Constellation({
       const d = departure(i, p);
       card.visible = d > 0.002;
       if (!card.visible) continue;
-      const [x, y, z] = threadPoint(i);
       const e = 1 - (1 - d) ** 3;
-      // Out of the lantern along an arc, turning to face the reader as it goes.
-      card.position.set(x * e, y * e + Math.sin(d * Math.PI) * 0.55, z * e);
-      card.scale.setScalar(0.3 + 0.7 * e);
-      card.rotation.set(0, (1 - e) * 1.2 + Math.sin(state.clock.elapsedTime * 0.6 + i) * 0.04, 0);
-      // Fade pages the view has passed, before they come too close.
+      target.set(...spiralPoint(i, f));
+      // Out of the lantern along an arc, then on the spiral.
+      card.position.lerpVectors(LANTERN_SPOT, target, e);
+      card.position.y += Math.sin(d * Math.PI) * 0.45;
+      const away = Math.abs(f - i);
+      card.scale.setScalar((0.35 + 0.65 * e) * (1 - Math.min(0.25, away * 0.1)));
+      card.rotation.set(0, THREE.MathUtils.lerp(1.1, spiralFacing(i, f), e) + Math.sin(state.clock.elapsedTime * 0.5 + i) * 0.02, 0);
+      // Brightest at the front; passed pages fade faster than upcoming ones.
+      const passed = smooth(f - i, 0.5, 1.6);
       const mat = card.material as THREE.MeshBasicMaterial;
-      mat.opacity = Math.min(1, d * 3) * (1 - smooth(card.position.z + worldZ, 1.2, 2.6));
-    }
-    for (let i = 0; i <= CHAPTERS; i++) {
-      const node = nodes.current[i];
-      if (!node) continue;
-      v.set(...threadPoint(i));
-      const shown = reveal * (CHAPTERS + 1) > i + 1;
-      node.scale.setScalar(shown ? (i === CHAPTERS ? 2.2 : 1) * (1 + Math.sin(state.clock.elapsedTime * 2 + i) * 0.15) : 0.001);
+      mat.opacity = Math.min(1, d * 3) * (1 - Math.min(0.6, away * 0.28)) * (1 - 0.85 * passed);
     }
   });
 
   return (
     <group>
-      <mesh geometry={thread} frustumCulled={false}>
-        <meshBasicMaterial
-          ref={threadMat}
-          color={dark ? "#6fe6d6" : "#0b8a7c"}
-          transparent
-          opacity={0}
-          blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
-          depthWrite={false}
-        />
-      </mesh>
-      {Array.from({ length: CHAPTERS + 1 }, (_, i) => (
-        <mesh key={`node-${i}`} ref={(m) => void (nodes.current[i] = m)} position={threadPoint(i)}>
-          <sphereGeometry args={[0.035, 16, 16]} />
-          <meshBasicMaterial color={dark ? "#f0b44c" : "#b26b00"} toneMapped={false} />
+      <group ref={spiral}>
+        <mesh geometry={thread} frustumCulled={false}>
+          <meshBasicMaterial
+            ref={threadMat}
+            color={dark ? "#6fe6d6" : "#0b8a7c"}
+            transparent
+            opacity={0}
+            blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
+            depthWrite={false}
+          />
         </mesh>
-      ))}
+        {Array.from({ length: CHAPTERS + 1 }, (_, i) => {
+          const a = -i * SPIRAL_STEP;
+          return (
+            <mesh key={`node-${i}`} position={[SPIRAL_RADIUS * Math.sin(a), -i * SPIRAL_RISE - CARD_H * 0.55, SPIRAL_RADIUS * Math.cos(a)]}>
+              <sphereGeometry args={[i === CHAPTERS ? 0.05 : 0.03, 16, 16]} />
+              <meshBasicMaterial ref={i === 0 ? nodeMat : undefined} color={dark ? "#f0b44c" : "#b26b00"} transparent opacity={0} toneMapped={false} />
+            </mesh>
+          );
+        })}
+      </group>
       {Array.from({ length: CHAPTERS }, (_, i) => (
         <mesh
           key={`card-${i}`}
@@ -598,7 +613,7 @@ function Constellation({
           visible={false}
           renderOrder={2}
           onClick={(e) => {
-            // Only a page that is out on the thread opens its chapter; otherwise the tap is not
+            // Only a page that is out on the spiral opens its chapter; otherwise the tap is not
             // for it (it may be meant for the book behind), so let it through.
             if (departure(i, phase.current) < 0.5) return;
             e.stopPropagation();
@@ -610,9 +625,8 @@ function Constellation({
           onPointerLeave={() => (document.body.style.cursor = "")}
         >
           <planeGeometry args={[CARD_W, CARD_H]} />
-          {/* The chapter's own left page: its illustration, number and headline. */}
-          {/* Drawn last and over the thread, so the thread arriving from the previous stop passes
-              behind the page instead of across it. */}
+          {/* The chapter's own left page: its illustration, number and headline. Drawn over the
+              thread so the thread passes behind it. */}
           <meshBasicMaterial map={faces[i + 1].back} transparent side={THREE.DoubleSide} toneMapped={false} depthTest={false} />
         </mesh>
       ))}

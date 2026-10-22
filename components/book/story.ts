@@ -5,9 +5,9 @@
  *   - first the open book closes (handled by the page logic),
  *   - then it opens all the way round into a lantern: its covers swing back until they nearly
  *     meet behind the spine and every page fans out into a glowing circle,
- *   - then the six chapter pages leave the lantern one by one and float out along a thread that
- *     winds away into the distance; the view travels along it, one chapter at a time,
- *     to a last point where the reader can get in touch.
+ *   - then the six chapter pages leave the lantern one by one onto a spiral, which turns as the
+ *     reader scrolls so each chapter swings to the front in turn, ending where the reader can
+ *     get in touch.
  */
 
 export const CHAPTERS = 6;
@@ -33,12 +33,23 @@ export type Phase = {
   focus: number;
 };
 
+/**
+ * Lets the spiral linger a little on each chapter: within each step, motion is part steady and
+ * part eased, so it slows as a chapter reaches the front and never stops dead.
+ */
+function dwell(f: number) {
+  if (f >= CHAPTERS) return CHAPTERS;
+  const i = Math.floor(f);
+  const r = f - i;
+  return i + 0.35 * r + 0.65 * r * r * (3 - 2 * r);
+}
+
 export function phaseAt(s: number): Phase {
   const chapters = clamp01((s - CHAPTERS_FROM) / (1 - CHAPTERS_FROM));
   return {
     lantern: smooth(s, LANTERN_FROM, LANTERN_TO),
     chapters,
-    focus: Math.min(CHAPTERS, Math.max(0, chapters * (CHAPTERS + 0.4) - 0.3)),
+    focus: dwell(Math.min(CHAPTERS, Math.max(0, chapters * (CHAPTERS + 0.4) - 0.3))),
   };
 }
 
@@ -73,22 +84,7 @@ export function leafAngle(j: number, lantern: number) {
   return Math.PI / 2 - CIRCLE * lantern * ((j + 1) / (LEAVES + 1));
 }
 
-/** Points of the thread, in world space: the lantern sits at the origin. */
-export function threadPoint(i: number): [number, number, number] {
-  if (i >= CHAPTERS) return [0, 0.05, -3 - CHAPTERS * 2.6];
-  return [Math.sin(i * 1.15 + 0.5) * 1.35, Math.cos(i * 0.85) * 0.35 - 0.05, -3 - i * 2.6];
-}
-
-/** Where the thread is at a fractional focus (between two points, eased). */
-export function threadAt(focus: number): [number, number, number] {
-  const i = Math.min(CHAPTERS - 1, Math.floor(focus));
-  const t = smooth(focus - i, 0, 1);
-  const a = threadPoint(i);
-  const b = threadPoint(i + 1);
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-}
-
-/** How far chapter i has travelled from the lantern to its place on the thread (0..1). */
+/** How far chapter i has travelled from the lantern to its place on the spiral (0..1). */
 export function departure(i: number, p: Phase) {
   // It sets off a little before the view reaches it, and arrives just in time.
   const arrive = (i + 0.3) / (CHAPTERS + 0.4);
@@ -96,4 +92,25 @@ export function departure(i: number, p: Phase) {
   // below zero and leave it floating beside the closed book.
   if (p.chapters <= 0) return 0;
   return smooth(p.chapters, Math.max(0, arrive - 0.12), arrive - 0.01);
+}
+
+/**
+ * The chapters' spiral. Pages sit on a helix around a vertical axis behind the stage; scrolling
+ * turns it so the chapter in view swings to the front, upcoming ones wait to the left, lower
+ * and further back, and passed ones turn away to the right. Positions are in the scene's world
+ * space (before its framing offset); the front of the spiral is at z = SPIRAL_FRONT.
+ */
+export const SPIRAL_STEP = 0.55; // radians between neighbouring chapters
+export const SPIRAL_RADIUS = 3.2;
+export const SPIRAL_RISE = 0.42; // height between neighbouring chapters
+export const SPIRAL_FRONT = 0.9;
+
+export function spiralPoint(t: number, focus: number): [number, number, number] {
+  const a = (focus - t) * SPIRAL_STEP;
+  return [SPIRAL_RADIUS * Math.sin(a), (focus - t) * SPIRAL_RISE, SPIRAL_FRONT - SPIRAL_RADIUS * (1 - Math.cos(a))];
+}
+
+/** Turn of the page at t so it faces outward from the spiral's axis. */
+export function spiralFacing(t: number, focus: number) {
+  return (focus - t) * SPIRAL_STEP;
 }
