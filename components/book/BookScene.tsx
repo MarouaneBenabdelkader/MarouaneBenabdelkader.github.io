@@ -270,18 +270,21 @@ function Book({ faces, page, together, theme, phase, motion, onPick }: { faces: 
     // In the lantern the spine is centred, the lantern tips back to show its glowing top and
     // turns slowly on its own.
     const { lantern: L, chapters: C } = phase.current;
-    if (!still) spin.current += delta * 0.22 * L;
+    // The lantern turns slowly; kept within one turn and weighted by how open the lantern is, so
+    // the book always comes back facing the reader when the lantern closes.
+    if (!still) spin.current = (spin.current + delta * 0.22 * L) % (2 * Math.PI);
+    const turned = (spin.current > Math.PI ? spin.current - 2 * Math.PI : spin.current) * L;
     // As the chapters leave, the lantern draws back and sinks below the thread.
     const away = smooth(C, 0, 0.12);
-    easing.damp3(rig.current.position, [x * (1 - L), bob - 0.9 * away, -1.2 * away], 1.1, delta);
-    rig.current.scale.setScalar(1 - 0.45 * away);
+    easing.damp3(rig.current.position, [x * (1 - L), bob - 1.5 * away, -2.6 * away], 1.1, delta);
+    rig.current.scale.setScalar(1 - 0.6 * away);
     const sway = still ? 0 : Math.sin(t * 0.35);
     const rot: [number, number, number] = open
       ? [-0.18 - py * 0.05, px * 0.09, 0]
       : [-0.1 - py * 0.14, sway * 0.22 + px * 0.3, still ? 0 : Math.sin(t * 0.5) * 0.03];
     const lanternRot: [number, number, number] = [
       THREE.MathUtils.lerp(rot[0], -0.62 - py * 0.05, L),
-      rot[1] * (1 - L) + spin.current,
+      rot[1] * (1 - L) + turned,
       rot[2] * (1 - L),
     ];
     easing.dampE(rig.current.rotation, lanternRot, open ? 0.8 : 1.1, delta);
@@ -484,7 +487,8 @@ function Leaves({ phase, theme }: { phase: React.RefObject<Phase>; theme: BookTh
       ref.current.setMatrixAt(j, dummy.matrix);
     }
     ref.current.instanceMatrix.needsUpdate = true;
-    material.opacity = Math.min(0.55, L * 4);
+    // Fainter once the chapters have left, so the lantern recedes behind them.
+    material.opacity = Math.min(0.55, L * 4) * (1 - 0.7 * smooth(phase.current.chapters, 0, 0.12));
   });
   return <instancedMesh ref={ref} args={[geometry, material, LEAVES]} frustumCulled={false} />;
 }
@@ -499,13 +503,13 @@ function World({ phase, children }: { phase: React.RefObject<Phase>; children: R
     const portrait = size.width / size.height < 0.85;
     const [x, y, z] = threadAt(p.focus);
     // Desktop: the page sits left of centre with its panel on the right. Phones: above the panel.
-    const offset = portrait ? [0, 0.3] : [-0.85, 0];
+    const offset = portrait ? [0, 0.3] : [-0.3, 0];
     ref.current.position.set(k * (offset[0] - x), k * (offset[1] - y), -k * z);
   });
   return <group ref={ref}>{children}</group>;
 }
 
-const CARD_W = 1.4;
+const CARD_W = 1.6;
 const CARD_H = CARD_W / 0.7485;
 
 /**
