@@ -114,3 +114,16 @@ export function spiralPoint(t: number, focus: number): [number, number, number] 
 export function spiralFacing(t: number, focus: number) {
   return (focus - t) * SPIRAL_STEP;
 }
+
+/**
+ * The first scroll position where the lantern is fully open and the first chapter is in place
+ * at the front of the spiral: where the automatic opening ends.
+ */
+export const FIRST_CHAPTER_AT = (() => {
+  for (let k = 0; k <= 10000; k++) {
+    const s = k / 10000;
+    const p = phaseAt(s);
+    if (p.lantern >= 1 && activeChapter(p) === 0) return s;
+  }
+  return 1;
+})();

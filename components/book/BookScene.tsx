@@ -397,6 +397,8 @@ export default function BookScene({
   motion,
   onPick,
   onOpen,
+  journey,
+  clickable,
 }: {
   canvases: SheetFaces[];
   page: number;
@@ -407,8 +409,12 @@ export default function BookScene({
   story: React.RefObject<number>;
   motion: Motion;
   onPick: (p: number) => void;
-  /** Open a chapter's case study (clicking its page on the thread). */
-  onOpen: (chapter: number) => void;
+  /** A stop's page on the spiral was clicked. */
+  onOpen: (stop: number) => void;
+  /** The journey cards on the spiral, one canvas per stop. */
+  journey: HTMLCanvasElement[];
+  /** Which stops respond to a click. */
+  clickable: boolean[];
 }) {
   const still = motion.turnMs <= 1;
   const dark = theme === "dark";
@@ -428,7 +434,7 @@ export default function BookScene({
         {(faces) => (
           <World phase={phase}>
             <Book faces={faces} page={page} together={together} theme={theme} phase={phase} motion={motion} onPick={onPick} />
-            <Constellation faces={faces} phase={phase} theme={theme} onOpen={onOpen} />
+            <Constellation journey={journey} clickable={clickable} phase={phase} theme={theme} onOpen={onOpen} />
           </World>
         )}
       </Textures>
@@ -521,12 +527,14 @@ const LANTERN_SPOT = new THREE.Vector3(0, -1.2, -2.2);
  * swings to the front in turn. A thin thread runs through them, like the cord of a binding.
  */
 function Constellation({
-  faces,
+  journey,
+  clickable,
   phase,
   theme,
   onOpen,
 }: {
-  faces: FaceTextures[];
+  journey: HTMLCanvasElement[];
+  clickable: boolean[];
   phase: React.RefObject<Phase>;
   theme: BookTheme;
   onOpen: (chapter: number) => void;
@@ -537,6 +545,18 @@ function Constellation({
   const threadMat = useRef<THREE.MeshBasicMaterial>(null!);
   const nodeMat = useRef<THREE.MeshBasicMaterial>(null!);
   const target = useMemo(() => new THREE.Vector3(), []);
+  const gl = useThree((s) => s.gl);
+  const maps = useMemo(
+    () =>
+      journey.map((c) => {
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = gl.capabilities.getMaxAnisotropy();
+        return t;
+      }),
+    [journey, gl],
+  );
+  useEffect(() => () => maps.forEach((t) => t.dispose()), [maps]);
 
   // The thread and its nodes are built once around the spiral's axis at focus 0; turning and
   // raising the group by the focus moves them exactly as spiralPoint moves the pages.
@@ -615,19 +635,18 @@ function Constellation({
           onClick={(e) => {
             // Only a page that is out on the spiral opens its chapter; otherwise the tap is not
             // for it (it may be meant for the book behind), so let it through.
-            if (departure(i, phase.current) < 0.5) return;
+            if (!clickable[i] || departure(i, phase.current) < 0.5) return;
             e.stopPropagation();
             onOpen(i);
           }}
           onPointerEnter={() => {
-            if (departure(i, phase.current) >= 0.5) document.body.style.cursor = "pointer";
+            if (clickable[i] && departure(i, phase.current) >= 0.5) document.body.style.cursor = "pointer";
           }}
           onPointerLeave={() => (document.body.style.cursor = "")}
         >
           <planeGeometry args={[CARD_W, CARD_H]} />
-          {/* The chapter's own left page: its illustration, number and headline. Drawn over the
-              thread so the thread passes behind it. */}
-          <meshBasicMaterial map={faces[i + 1].back} transparent side={THREE.DoubleSide} toneMapped={false} depthTest={false} />
+          {/* The stop's card, drawn over the thread so the thread passes behind it. */}
+          <meshBasicMaterial map={maps[i] ?? null} transparent side={THREE.DoubleSide} toneMapped={false} depthTest={false} />
         </mesh>
       ))}
     </group>

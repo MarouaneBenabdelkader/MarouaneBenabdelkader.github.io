@@ -29,8 +29,8 @@ export const book = {
   classic: { en: "Prefer a classic page? See the full portfolio", fr: "Vous préférez une page classique ? Voir le portfolio complet" },
   chapter: { en: "Chapter", fr: "Chapitre" },
   lanternHint: {
-    en: "Keep scrolling: the chapters are about to leave the book",
-    fr: "Continuez à défiler : les chapitres vont quitter le livre",
+    en: "Keep scrolling: my path unfolds from the book",
+    fr: "Continuez à défiler : mon parcours se déploie hors du livre",
   },
   challengeLabel: { en: "The challenge", fr: "Le défi" },
   howLabel: { en: "How it works", fr: "Comment ça marche" },
@@ -41,7 +41,44 @@ export const book = {
   },
 } satisfies Record<string, T>;
 
-export type Chapter = { headline: T; hook: T; how: [T, T, T]; result: T };
+/** The two stops of the journey that are not jobs: the freelance years and what comes next. */
+export const journey = {
+  freelance: {
+    company: { en: "Freelance", fr: "Freelance" },
+    role: { en: "AI agents, RAG assistants and web apps", fr: "Agents IA, assistants RAG et applications web" },
+    type: { en: "With Codito Ergo Sum and direct clients", fr: "Avec Codito Ergo Sum et des clients directs" },
+    dates: { en: "2025 – present", fr: "2025 – aujourd'hui" },
+    lines: [
+      {
+        en: "Six projects shipped to real businesses, from first workshop to production.",
+        fr: "Six projets livrés à de vraies entreprises, du premier atelier à la mise en production.",
+      },
+      {
+        en: "Each one is a chapter of this book.",
+        fr: "Chacun est un chapitre de ce livre.",
+      },
+    ],
+  },
+  next: {
+    company: { en: "Next chapter", fr: "Prochain chapitre" },
+    role: { en: "Permanent position (CDI)", fr: "Poste en CDI" },
+    type: { en: "AI engineer & full stack developer", fr: "Ingénieur IA & développeur full stack" },
+    dates: { en: "From September 2027", fr: "À partir de septembre 2027" },
+    lines: [
+      {
+        en: "Open to a permanent role once my apprenticeship at Amadeus ends.",
+        fr: "Disponible pour un poste en CDI à la fin de mon alternance chez Amadeus.",
+      },
+      {
+        en: "Freelance missions welcome until then.",
+        fr: "Ouvert aux missions freelance d'ici là.",
+      },
+    ],
+  },
+  readChapters: { en: "Read the chapters", fr: "Lire les chapitres" },
+};
+
+export type Chapter ={ headline: T; hook: T; how: [T, T, T]; result: T };
 
 /** Book-specific copy for each project, written to be read on a page rather than scanned on a site. */
 export const chapters: Record<string, Chapter> = {

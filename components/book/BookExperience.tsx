@@ -2,10 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buildFaces, type BookContent, type BookTheme } from "./pages";
-import { activeChapter, BOOK_UNTIL, phaseAt } from "./story";
+import { buildFaces, journeyCard, type BookContent, type BookTheme } from "./pages";
+import { activeChapter, BOOK_UNTIL, FIRST_CHAPTER_AT, phaseAt } from "./story";
 import type { Motion } from "./BookScene";
 
 const BookScene = dynamic(() => import("./BookScene"), { ssr: false });
@@ -15,6 +14,8 @@ export type BookProps = {
     projects: (Omit<BookContent["projects"][number], "image"> & { image: Record<BookTheme, string>; href: string })[];
   };
   covers: { front: string; frontGlow: string; back: string; backGlow: string };
+  /** The journey on the spiral, oldest first. */
+  stops: { kind: "job" | "freelance" | "next"; company: string; role: string; type: string; dates: string; lines: string[]; logo?: string }[];
   ui: {
     loading: string;
     hintOpen: string;
@@ -30,6 +31,7 @@ export type BookProps = {
     lanternHint: string;
     contact: string;
     linkedin: string;
+    readChapters: string;
   };
 };
 
@@ -73,9 +75,10 @@ async function siteFonts() {
   return { display, body };
 }
 
-export function BookExperience({ content, covers, ui }: BookProps) {
+export function BookExperience({ content, covers, stops, ui }: BookProps) {
   const [state, setState] = useState<"loading" | "ready" | "fallback">("loading");
   const [canvases, setCanvases] = useState<ReturnType<typeof buildFaces> | null>(null);
+  const [journeyCanvases, setJourneyCanvases] = useState<HTMLCanvasElement[]>([]);
   const [page, setPage] = useState(0);
   const [touched, setTouched] = useState(false);
   const [reduced, setReduced] = useState(false);
@@ -94,7 +97,6 @@ export function BookExperience({ content, covers, ui }: BookProps) {
   const [stage, setStage] = useState<Stage>({ kind: "book" });
   const stageRef = useRef(stage);
   const rootRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   // Follow the site theme: light pages with ink drawings, or dark pages with glowing ones.
   useEffect(() => {
@@ -128,6 +130,7 @@ export function BookExperience({ content, covers, ui }: BookProps) {
           loadImage(covers.backGlow),
           ...content.projects.map((p) => loadImage(p.image[theme])),
         ]);
+        const stopLogos = await Promise.all(stops.map((s) => (s.logo ? loadImage(s.logo) : Promise.resolve(undefined))));
         if (cancelled) return;
         const faces = buildFaces(
           { ...content, covers: { front, frontGlow, back, backGlow }, projects: content.projects.map((p, i) => ({ ...p, image: images[i] })) },
@@ -138,6 +141,8 @@ export function BookExperience({ content, covers, ui }: BookProps) {
           !single,
         );
         setCanvases(faces);
+        const art = window.matchMedia("(pointer: coarse)").matches ? 1 : 1.5;
+        setJourneyCanvases(stops.map((s, i) => journeyCard({ ...s, logo: stopLogos[i] }, i, fonts, theme, art)));
         setState("ready");
       } catch {
         if (!cancelled) setState("fallback");
@@ -146,7 +151,7 @@ export function BookExperience({ content, covers, ui }: BookProps) {
     return () => {
       cancelled = true;
     };
-  }, [content, covers, theme, single]);
+  }, [content, covers, stops, theme, single]);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -170,12 +175,47 @@ export function BookExperience({ content, covers, ui }: BookProps) {
   // the chapters leave it one by one.
   useEffect(() => {
     const section = rootRef.current?.closest<HTMLElement>("[data-story]");
+    // The opening plays by itself: starting to scroll down from the book glides the page to the
+    // first chapter (the book closes, opens into the lantern and the first chapter flies out on
+    // the way); scrolling back up from there glides back to the book.
+    const GLIDE_MS = 2600;
+    let glide: number | null = null;
+    let lastS = 0;
+    const scrollFor = (s: number) => {
+      const rect = section!.getBoundingClientRect();
+      const travel = Math.max(1, rect.height - window.innerHeight);
+      return rect.top + window.scrollY + s * travel;
+    };
+    const glideTo = (s: number) => {
+      const from = window.scrollY;
+      const to = scrollFor(s);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        window.scrollTo({ top: to, behavior: "instant" });
+        return;
+      }
+      const start = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / GLIDE_MS);
+        const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+        window.scrollTo({ top: from + (to - from) * e, behavior: "instant" });
+        glide = t < 1 ? requestAnimationFrame(step) : null;
+      };
+      if (glide !== null) cancelAnimationFrame(glide);
+      glide = requestAnimationFrame(step);
+    };
     const onScroll = () => {
       if (!section) return;
       const rect = section.getBoundingClientRect();
       const travel = Math.max(1, rect.height - window.innerHeight);
       const s = Math.min(1, Math.max(0, -rect.top / travel));
       story.current = s;
+      if (glide === null) {
+        // Any scroll away from the book starts it; a single wheel step moves s by about 0.015.
+        const between = s > 0.001 && s < FIRST_CHAPTER_AT - 0.002;
+        if (between && s > lastS && lastS <= BOOK_UNTIL) glideTo(FIRST_CHAPTER_AT);
+        else if (between && s < lastS && lastS >= FIRST_CHAPTER_AT - 0.002) glideTo(0);
+      }
+      lastS = s;
       const p = pageRef.current;
       if (s > BOOK_UNTIL && p > 0 && p < SHEETS) {
         reopenAt.current = p;
@@ -202,12 +242,18 @@ export function BookExperience({ content, covers, ui }: BookProps) {
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
+      if (glide !== null) cancelAnimationFrame(glide);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
   }, []);
 
-  const openChapter = useCallback((i: number) => router.push(content.projects[i].href), [router, content.projects]);
+  // The freelance stop leads back to the chapters at the top of the book; the others are read
+  // in their panel.
+  const backToChapters = useCallback(() => window.scrollTo({ top: 0, behavior: "smooth" }), []);
+  const openStop = useCallback((i: number) => {
+    if (stops[i]?.kind === "freelance") backToChapters();
+  }, [stops, backToChapters]);
 
   // A swipe also ends in a click on the page under the finger; ignore that click.
   const pick = useCallback((p: number) => {
@@ -261,7 +307,9 @@ export function BookExperience({ content, covers, ui }: BookProps) {
               story={story}
               motion={reduced ? INSTANT : together ? CLOSE : SLOW}
               onPick={pick}
-              onOpen={openChapter}
+              onOpen={openStop}
+              journey={journeyCanvases}
+              clickable={stops.map((s) => s.kind === "freelance")}
             />
           </div>
         )}
@@ -288,7 +336,7 @@ export function BookExperience({ content, covers, ui }: BookProps) {
         )}
 
         {/* The chapter in view on the thread: beside its page on wide screens, below it on phones. */}
-        {state === "ready" && <StoryPanel stage={stage} content={content} ui={ui} />}
+        {state === "ready" && <StoryPanel stage={stage} stops={stops} ui={ui} onChapters={backToChapters} />}
       </div>
 
       <div
@@ -335,8 +383,18 @@ export function BookExperience({ content, covers, ui }: BookProps) {
   );
 }
 
-function StoryPanel({ stage, content, ui }: { stage: Stage; content: BookProps["content"]; ui: BookProps["ui"] }) {
-  const chapter = stage.kind === "chapter" ? content.projects[stage.index] : null;
+function StoryPanel({
+  stage,
+  stops,
+  ui,
+  onChapters,
+}: {
+  stage: Stage;
+  stops: BookProps["stops"];
+  ui: BookProps["ui"];
+  onChapters: () => void;
+}) {
+  const stop = stage.kind === "chapter" ? stops[stage.index] : null;
   const visible = stage.kind === "chapter" || stage.kind === "end";
   return (
     <div
@@ -344,21 +402,32 @@ function StoryPanel({ stage, content, ui }: { stage: Stage; content: BookProps["
       className="absolute inset-x-4 bottom-4 mx-auto max-w-md rounded-2xl border border-line bg-raised/80 p-5 shadow-lg backdrop-blur transition-all duration-500 md:inset-x-auto md:bottom-auto md:right-[6%] md:top-1/2 md:w-[24rem] md:-translate-y-1/2"
       style={{ opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none" }}
     >
-      {chapter && stage.kind === "chapter" && (
+      {stop && stage.kind === "chapter" && (
         <div key={stage.index} className="animate-[book-in_0.6s_ease-out_both]">
           <p className="font-display text-sm font-semibold text-accent-ink">
-            {content.chapter} {String(stage.index + 1).padStart(2, "0")}
+            {String(stage.index + 1).padStart(2, "0")} · {stop.dates}
           </p>
-          <p className="mt-0.5 text-sm text-muted">{chapter.sector}</p>
-          <h3 className="mt-3 font-display text-xl font-bold leading-snug sm:text-2xl">{chapter.headline}</h3>
-          <p className="mt-3 text-[0.95rem] italic leading-relaxed text-ink/90">{chapter.hook}</p>
-          <Link
-            href={chapter.href}
-            className="mt-4 inline-block text-sm font-semibold text-accent-ink underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
-          >
-            {ui.readCase}
-            <span aria-hidden className="ml-1">›</span>
-          </Link>
+          <h3 className="mt-2 font-display text-xl font-bold leading-snug sm:text-2xl">{stop.company}</h3>
+          <p className="mt-1 font-semibold text-accent-ink">{stop.role}</p>
+          <p className="mt-0.5 text-sm text-muted">{stop.type}</p>
+          <ul className="mt-3 space-y-1.5 text-[0.95rem] leading-relaxed text-ink/90">
+            {stop.lines.map((l) => (
+              <li key={l} className="flex gap-2">
+                <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-accent" />
+                {l}
+              </li>
+            ))}
+          </ul>
+          {stop.kind === "freelance" && (
+            <button
+              type="button"
+              onClick={onChapters}
+              className="mt-4 text-sm font-semibold text-accent-ink underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
+            >
+              {ui.readChapters}
+              <span aria-hidden className="ml-1">›</span>
+            </button>
+          )}
         </div>
       )}
       {stage.kind === "end" && (

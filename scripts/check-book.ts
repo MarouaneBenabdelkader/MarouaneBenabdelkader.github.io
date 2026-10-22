@@ -1,6 +1,6 @@
 // Checks the book's page stacking: a page being turned must never sink below the sheets it
 // is leaving or landing on, or their content flashes through it at the start or end of a turn.
-import { activeChapter, BOOK_UNTIL, CHAPTERS, departure, spiralPoint, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
+import { activeChapter, BOOK_UNTIL, CHAPTERS, FIRST_CHAPTER_AT, departure, spiralPoint, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
 import { BEND_SHAPE, boneTwist, bowFactor, bowOverTurn, OPEN_SHAPE, PAGE_HEIGHT, PAGE_SEGMENTS, PAGE_WIDTH, sheetHeight, STACK_GAP, togetherDelay, TURN_BEND, TURN_LIFT } from "../components/book/stack";
 
 const SHEETS = 8;
@@ -182,6 +182,11 @@ for (let step = 1; step < 100; step++) {
   }
   if (seen.join(",") !== Array.from({ length: CHAPTERS }, (_, i) => i).join(",")) story.push(`chapters shown out of order: ${seen.join(",")}`);
   if (phaseAt(1).focus !== CHAPTERS) story.push("the thread does not reach its end");
+  // The automatic opening ends with the lantern open and the first chapter in front.
+  {
+    const p = phaseAt(FIRST_CHAPTER_AT);
+    if (FIRST_CHAPTER_AT >= 0.6 || p.lantern < 1 || activeChapter(p) !== 0) story.push(`the automatic opening does not end on chapter 1 (s=${FIRST_CHAPTER_AT})`);
+  }
   // On the spiral, the chapter in view is always the one at the front, nearest the reader.
   for (let k = 0; k <= 200; k++) {
     const p = phaseAt(0.34 + (k / 200) * 0.66);
@@ -209,3 +214,12 @@ if (failures.length) {
 }
 console.log("PASS: book stacking (a turning page always stays on top)");
 console.log("PASS: book story (lantern angles, chapters in order and in place)");
+
+// The journey on the spiral has one stop per place on it: every job, the freelance years and
+// what comes next.
+import { profile } from "../content/profile";
+if (profile.experience.length + 2 !== CHAPTERS) {
+  console.error(`FAIL: the journey has ${profile.experience.length + 2} stops but the spiral has room for ${CHAPTERS}`);
+  process.exit(1);
+}
+console.log(`PASS: journey (${CHAPTERS} stops)`);

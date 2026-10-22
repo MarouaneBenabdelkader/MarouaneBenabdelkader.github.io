@@ -5,7 +5,8 @@ import { isLang, tr } from "@/content/types";
 import { projects } from "@/content/projects";
 import { profile } from "@/content/profile";
 import { ui } from "@/content/ui";
-import { book, chapters } from "@/content/book";
+import { book, chapters, journey } from "@/content/book";
+import { logos } from "@/components/Logo";
 import { BookExperience, type BookProps } from "@/components/book/BookExperience";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -40,7 +41,34 @@ export default async function BookPage({ params }: { params: Promise<{ lang: str
     };
   });
 
+  // The journey on the spiral, oldest first: each job, the freelance years, then what comes next.
+  const jobs = [...profile.experience].reverse().map((j) => ({
+    kind: "job" as const,
+    company: j.company,
+    role: tr(j.role, lang),
+    type: tr(j.type, lang),
+    dates: tr(j.dates, lang),
+    lines: j.bullets.slice(0, 2).map((b) => tr(b, lang)),
+    logo: j.logo?.src,
+  }));
+  const extra = (key: "freelance" | "next", logo?: string) => {
+    const x = journey[key];
+    return {
+      kind: key,
+      company: tr(x.company, lang),
+      role: tr(x.role, lang),
+      type: tr(x.type, lang),
+      dates: tr(x.dates, lang),
+      lines: x.lines.map((l) => tr(l, lang)),
+      logo,
+    };
+  };
+  // Freelance began in 2025 alongside Deep2Drive and before Amadeus, so it sits between them.
+  const amadeus = jobs.findIndex((j) => j.company === "Amadeus");
+  const stops = [...jobs.slice(0, amadeus), extra("freelance", logos.codito.src), ...jobs.slice(amadeus), extra("next")];
+
   const props: BookProps = {
+    stops,
     covers: {
       front: "/book/cover.jpg",
       frontGlow: "/book/cover-glow.jpg",
@@ -77,6 +105,7 @@ export default async function BookPage({ params }: { params: Promise<{ lang: str
       lanternHint: tr(book.lanternHint, lang),
       contact: tr(book.backTitle, lang),
       linkedin: profile.linkedin,
+      readChapters: tr(journey.readChapters, lang),
     },
   };
 

@@ -492,3 +492,87 @@ export function buildFaces(content: BookContent, fonts: Fonts, faceScale: FaceSc
   }
   return faces;
 }
+
+/** One stop of the journey on the spiral: a job, the freelance years, or what comes next. */
+export type JourneyStop = {
+  company: string;
+  role: string;
+  type: string;
+  dates: string;
+  lines: string[];
+  logo?: HTMLImageElement;
+};
+
+/** Draws a logo as a single-colour mark, the way the site shows company logos. */
+function tintedLogo(img: HTMLImageElement, color: string, h: number) {
+  const w = Math.round((img.width / img.height) * h);
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(img, 0, 0, w, h);
+  return c;
+}
+
+/**
+ * A journey card, built like a book page: the engraved frame, the dates as a lit label, the
+ * company in large type (with its logo when there is one), the role and two lines on the work.
+ */
+export function journeyCard(stop: JourneyStop, index: number, fonts: Fonts, theme: BookTheme, s: number) {
+  C = PALETTES[theme];
+  const [c, ctx] = canvas(s);
+  ctx.fillStyle = C.paper;
+  ctx.fillRect(0, 0, PAGE_PX.w, PAGE_PX.h);
+  const v = ctx.createRadialGradient(PAGE_PX.w / 2, PAGE_PX.h * 0.38, 80, PAGE_PX.w / 2, PAGE_PX.h * 0.45, PAGE_PX.h * 0.75);
+  v.addColorStop(0, C.vignette[0]);
+  v.addColorStop(1, C.vignette[1]);
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, PAGE_PX.w, PAGE_PX.h);
+  frame(ctx);
+  const max = PAGE_PX.w - 2 * M;
+
+  // Step number and dates.
+  ctx.fillStyle = C.accent;
+  ctx.font = `700 34px ${fonts.display}`;
+  ctx.fillText(String(index + 1).padStart(2, "0"), M, 200);
+  ctx.font = `600 34px ${fonts.body}`;
+  ctx.fillText(stop.dates, M + 80, 200);
+
+  let y = 300;
+  // A wide logo is the company's name set as a wordmark: it stands in for the name. A square
+  // one is a symbol, so the name follows it.
+  const wordmark = !!stop.logo && stop.logo.width / stop.logo.height > 2.5;
+  if (stop.logo) {
+    const h = wordmark ? 120 : 170;
+    const mark = tintedLogo(stop.logo, C.ink, h);
+    const w = Math.min(max, mark.width);
+    const dh = (w / mark.width) * h;
+    ctx.drawImage(mark, M, y, w, dh);
+    y += dh + (wordmark ? 70 : 110);
+  } else {
+    y += 40;
+  }
+
+  if (!wordmark) {
+    ctx.fillStyle = C.ink;
+    ctx.font = `800 84px ${fonts.display}`;
+    glowing(ctx, 14, () => (y = wrap(ctx, stop.company, M, y, max, 90, 2)));
+  }
+  trace(ctx, M, y - 20, 220);
+
+  ctx.fillStyle = C.accent;
+  ctx.font = `600 44px ${fonts.display}`;
+  y = wrap(ctx, stop.role, M, y + 70, max, 54, 3);
+  ctx.fillStyle = C.muted;
+  ctx.font = `500 32px ${fonts.body}`;
+  y = wrap(ctx, stop.type, M, y + 6, max, 42, 2);
+
+  y += 40;
+  for (const line of stop.lines.slice(0, 2)) y = bullet(ctx, line, y, 36, 50, fonts, false) + 16;
+
+  gutter(ctx, "left");
+  return c;
+}
