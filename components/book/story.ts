@@ -92,5 +92,8 @@ export function threadAt(focus: number): [number, number, number] {
 export function departure(i: number, p: Phase) {
   // It sets off a little before the view reaches it, and arrives just in time.
   const arrive = (i + 0.3) / (CHAPTERS + 0.4);
-  return smooth(p.chapters, arrive - 0.12, arrive - 0.01);
+  // Never before the chapters phase begins: the first chapter's window would otherwise start
+  // below zero and leave it floating beside the closed book.
+  if (p.chapters <= 0) return 0;
+  return smooth(p.chapters, Math.max(0, arrive - 0.12), arrive - 0.01);
 }

@@ -594,10 +594,15 @@ function Constellation({
           visible={false}
           renderOrder={2}
           onClick={(e) => {
+            // Only a page that is out on the thread opens its chapter; otherwise the tap is not
+            // for it (it may be meant for the book behind), so let it through.
+            if (departure(i, phase.current) < 0.5) return;
             e.stopPropagation();
             onOpen(i);
           }}
-          onPointerEnter={() => (document.body.style.cursor = "pointer")}
+          onPointerEnter={() => {
+            if (departure(i, phase.current) >= 0.5) document.body.style.cursor = "pointer";
+          }}
           onPointerLeave={() => (document.body.style.cursor = "")}
         >
           <planeGeometry args={[CARD_W, CARD_H]} />
