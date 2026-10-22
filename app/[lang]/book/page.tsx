@@ -74,6 +74,9 @@ export default async function BookPage({ params }: { params: Promise<{ lang: str
       contactCaption: tr(book.contactCaption, lang),
       readCase: tr(ui.readCase, lang),
       email: profile.email,
+      lanternHint: tr(book.lanternHint, lang),
+      contact: tr(book.backTitle, lang),
+      linkedin: profile.linkedin,
     },
   };
 
@@ -82,8 +85,12 @@ export default async function BookPage({ params }: { params: Promise<{ lang: str
       <h1 className="sr-only">
         {profile.name}, {tr(book.metaTitle, lang)}
       </h1>
-      <section className="stage relative h-[calc(100svh-4rem)] min-h-[34rem] overflow-hidden">
-        <BookExperience {...props} />
+      {/* A tall section scrolled through while the stage stays pinned: the book, then the lantern,
+          then the chapters along their thread. */}
+      <section data-story className="stage relative" style={{ height: "620svh" }}>
+        <div className="stage sticky top-16 h-[calc(100svh-4rem)] min-h-[34rem] overflow-hidden">
+          <BookExperience {...props} />
+        </div>
       </section>
 
       <section id="contents" aria-labelledby="contents-title" className="border-t border-line">

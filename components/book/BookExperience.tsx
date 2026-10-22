@@ -2,8 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildFaces, type BookContent, type BookTheme } from "./pages";
+import { activeChapter, BOOK_UNTIL, phaseAt } from "./story";
 import type { Motion } from "./BookScene";
 
 const BookScene = dynamic(() => import("./BookScene"), { ssr: false });
@@ -25,8 +27,15 @@ export type BookProps = {
     contactCaption: string;
     readCase: string;
     email: string;
+    lanternHint: string;
+    contact: string;
+    linkedin: string;
   };
 };
+
+/** Where the reader is in the book's scroll story, coarse enough to drive the panels. */
+type Stage = { kind: "book" } | { kind: "lantern" } | { kind: "chapter"; index: number } | { kind: "end" };
+const sameStage = (a: Stage, b: Stage) => a.kind === b.kind && (a.kind !== "chapter" || (b.kind === "chapter" && a.index === b.index));
 
 const SLOW: Motion = { turnMs: 1800, smooth: 0.42, fold: 0.35 };
 // Closing on scroll: every open sheet swings shut together, slower than a single page turn.
@@ -79,6 +88,13 @@ export function BookExperience({ content, covers, ui }: BookProps) {
   pageRef.current = page;
   const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
   const swiped = useRef(0);
+  // How far through the book's tall section the reader has scrolled (0..1), read every frame by
+  // the scene; the stage only changes when a panel should.
+  const story = useRef(0);
+  const [stage, setStage] = useState<Stage>({ kind: "book" });
+  const stageRef = useRef(stage);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // Follow the site theme: light pages with ink drawings, or dark pages with glowing ones.
   useEffect(() => {
@@ -149,25 +165,47 @@ export function BookExperience({ content, covers, ui }: BookProps) {
     setPage(Math.max(0, Math.min(SHEETS, p)));
   }, []);
 
-  // Scrolling down closes an open book; scrolling back to the top reopens it where it was.
+  // Scrolling through the book's section drives the story: an open book first closes (and
+  // reopens where it was if the reader comes back to the top), then opens into the lantern, then
+  // the chapters leave it one by one.
   useEffect(() => {
+    const section = rootRef.current?.closest<HTMLElement>("[data-story]");
     const onScroll = () => {
-      const y = window.scrollY;
+      if (!section) return;
+      const rect = section.getBoundingClientRect();
+      const travel = Math.max(1, rect.height - window.innerHeight);
+      const s = Math.min(1, Math.max(0, -rect.top / travel));
+      story.current = s;
       const p = pageRef.current;
-      if (y > 60 && p > 0 && p < SHEETS) {
+      if (s > BOOK_UNTIL && p > 0 && p < SHEETS) {
         reopenAt.current = p;
         setTogether(true);
         setPage(0);
-      } else if (y < 20 && p === 0 && reopenAt.current !== null) {
+      } else if (s < 0.004 && p === 0 && reopenAt.current !== null) {
         const back = reopenAt.current;
         reopenAt.current = null;
         setTogether(true);
         setPage(back);
       }
+      const phase = phaseAt(s);
+      const chapter = activeChapter(phase);
+      const next: Stage =
+        s <= BOOK_UNTIL ? { kind: "book" } : chapter !== null ? { kind: "chapter", index: chapter } : phase.focus > 5.5 ? { kind: "end" } : { kind: "lantern" };
+      if (!sameStage(next, stageRef.current)) {
+        stageRef.current = next;
+        setStage(next);
+      }
     };
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
+
+  const openChapter = useCallback((i: number) => router.push(content.projects[i].href), [router, content.projects]);
 
   // A swipe also ends in a click on the page under the finger; ignore that click.
   const pick = useCallback((p: number) => {
@@ -190,6 +228,7 @@ export function BookExperience({ content, covers, ui }: BookProps) {
 
   return (
     <div
+      ref={rootRef}
       className="flex size-full touch-pan-y select-none flex-col"
       onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY, t: performance.now() })}
       onPointerUp={(e) => {
@@ -217,8 +256,10 @@ export function BookExperience({ content, covers, ui }: BookProps) {
               page={page}
               together={together}
               theme={theme ?? "dark"}
+              story={story}
               motion={reduced ? INSTANT : together ? CLOSE : SLOW}
               onPick={pick}
+              onOpen={openChapter}
             />
           </div>
         )}
@@ -238,14 +279,21 @@ export function BookExperience({ content, covers, ui }: BookProps) {
         {state === "ready" && (
           <p
             className="pointer-events-none absolute inset-x-0 top-4 text-center text-sm text-muted transition-opacity duration-700"
-            style={{ opacity: touched && page > 0 ? 0 : 1 }}
+            style={{ opacity: stage.kind === "lantern" || (stage.kind === "book" && !(touched && page > 0)) ? 1 : 0 }}
           >
-            {page === 0 ? ui.hintOpen : ui.hintTurn}
+            {stage.kind === "lantern" ? ui.lanternHint : page === 0 ? ui.hintOpen : ui.hintTurn}
           </p>
         )}
+
+        {/* The chapter in view on the thread: beside its page on wide screens, below it on phones. */}
+        {state === "ready" && <StoryPanel stage={stage} content={content} ui={ui} />}
       </div>
 
-      <div className="flex shrink-0 flex-col items-center gap-3 px-4 pb-5 pt-2" style={{ visibility: state === "ready" ? "visible" : "hidden" }}>
+      <div
+        className="flex shrink-0 flex-col items-center gap-3 px-4 pb-5 pt-2 transition-opacity duration-500"
+        // The page controls belong to the book; once the story moves on they fade out of the way.
+        style={{ visibility: state === "ready" ? "visible" : "hidden", opacity: stage.kind === "book" ? 1 : 0, pointerEvents: stage.kind === "book" ? "auto" : "none" }}
+      >
         <p aria-live="polite" className="flex min-h-[4.25rem] max-w-2xl flex-col items-center justify-end text-center">
           <span className="block font-display text-base font-semibold leading-snug sm:text-lg">{caption}</span>
           {project && (
@@ -281,6 +329,49 @@ export function BookExperience({ content, covers, ui }: BookProps) {
           <PageButton label={ui.next} disabled={page === SHEETS} onClick={() => go(page + 1)} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function StoryPanel({ stage, content, ui }: { stage: Stage; content: BookProps["content"]; ui: BookProps["ui"] }) {
+  const chapter = stage.kind === "chapter" ? content.projects[stage.index] : null;
+  const visible = stage.kind === "chapter" || stage.kind === "end";
+  return (
+    <div
+      aria-live="polite"
+      className="absolute inset-x-4 bottom-4 mx-auto max-w-md rounded-2xl border border-line bg-raised/80 p-5 shadow-lg backdrop-blur transition-all duration-500 md:inset-x-auto md:bottom-auto md:right-[6%] md:top-1/2 md:w-[24rem] md:-translate-y-1/2"
+      style={{ opacity: visible ? 1 : 0, pointerEvents: visible ? "auto" : "none" }}
+    >
+      {chapter && stage.kind === "chapter" && (
+        <div key={stage.index} className="animate-[book-in_0.6s_ease-out_both]">
+          <p className="font-display text-sm font-semibold text-accent-ink">
+            {content.chapter} {String(stage.index + 1).padStart(2, "0")}
+          </p>
+          <p className="mt-0.5 text-sm text-muted">{chapter.sector}</p>
+          <h3 className="mt-3 font-display text-xl font-bold leading-snug sm:text-2xl">{chapter.headline}</h3>
+          <p className="mt-3 text-[0.95rem] italic leading-relaxed text-ink/90">{chapter.hook}</p>
+          <Link
+            href={chapter.href}
+            className="mt-4 inline-block text-sm font-semibold text-accent-ink underline decoration-transparent underline-offset-4 transition-colors hover:decoration-current"
+          >
+            {ui.readCase}
+            <span aria-hidden className="ml-1">›</span>
+          </Link>
+        </div>
+      )}
+      {stage.kind === "end" && (
+        <div className="animate-[book-in_0.6s_ease-out_both]">
+          <h3 className="font-display text-xl font-bold leading-snug sm:text-2xl">{ui.contact}</h3>
+          <p className="mt-3 flex flex-col gap-1 text-sm font-semibold text-accent-ink">
+            <a href={`mailto:${ui.email}`} className="underline underline-offset-4">
+              {ui.email}
+            </a>
+            <a href={ui.linkedin} className="underline underline-offset-4">
+              LinkedIn
+            </a>
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { easing } from "maath";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { BookTheme, SheetFaces } from "./pages";
+import { CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt, smooth, threadAt, threadPoint, type Phase } from "./story";
 import { BEND_SHAPE, OPEN_SHAPE, PAGE_HEIGHT, PAGE_WIDTH, PAGE_SEGMENTS, TURN_BEND, boneTwist, bowFactor, bowOverTurn, sheetHeight, togetherDelay } from "./stack";
 
 /**
@@ -68,11 +69,13 @@ type PageProps = {
   delay: number;
   /** Which sheets are moving or about to, shared by all pages (one flag per sheet). */
   inFlight: React.RefObject<boolean[]>;
+  /** The scroll story (lantern and chapters), shared by the whole scene. */
+  phase: React.RefObject<Phase>;
   motion: Motion;
   onPick: (page: number) => void;
 };
 
-function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFlight, motion, onPick }: PageProps) {
+function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFlight, phase, motion, onPick }: PageProps) {
   const group = useRef<THREE.Group>(null!);
   const opened = page > number;
   // 0 = lying on the right, 1 = lying on the left. It moves at a constant rate and is eased on
@@ -145,10 +148,12 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
     const open = THREE.MathUtils.smoothstep(opening.current, 0.4, 1);
 
     // Total rotation: +90 degrees lying right, -90 lying left, plus a hair of fan between sheets.
-    const total = Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2);
+    // In the lantern, every sheet swings round to its place in the circle instead.
+    const L = phase.current.lantern;
+    const total = THREE.MathUtils.lerp(Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2), lanternAngle(number, sheets), L);
     // Book-local x points at the camera: lift each sheet to its place in its stack, and raise it
-    // off the stack while it travels.
-    group.current.position.x = sheetHeight(number, sheets, eased, arc);
+    // off the stack while it travels. In the lantern the sheets all meet at the spine.
+    group.current.position.x = sheetHeight(number, sheets, eased, arc) * (1 - L);
 
     const bones = mesh.skeleton.bones;
     for (let i = 0; i < bones.length; i++) {
@@ -157,22 +162,25 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
       // first few segments, so the page leaves the spine at an angle and then lies flat.
       const share = THREE.MathUtils.lerp(i === 0 ? 1 : 0, OPEN_SHAPE[i], open);
       // While turning, the free edge leads and the paper bows behind it.
-      const bend = stiff ? 0 : -dir * TURN_BEND * BEND_SHAPE[i] * bowOverTurn(journey) * bowAmount.current;
+      const bend = stiff ? 0 : -dir * TURN_BEND * BEND_SHAPE[i] * bowOverTurn(journey) * bowAmount.current * (1 - L);
       node.rotation.y = total * share + bend;
-      node.rotation.x = stiff ? 0 : dir * boneTwist(i, arc) * bowAmount.current;
+      node.rotation.x = stiff ? 0 : dir * boneTwist(i, arc) * bowAmount.current * (1 - L);
     }
 
     const mats = mesh.material as THREE.MeshStandardMaterial[];
     const pulse = motion.turnMs > 1 ? Math.sin(state.clock.elapsedTime * 1.3) * 0.35 : 0;
     [faces.frontGlow, faces.backGlow].forEach((mask, i) => {
       // A travelling page catches a little more light at the top of its arc.
-      const target = mask ? COVER_GLOW + pulse + (hovered ? 0.7 : 0) : glow + arc * 0.12 + (hovered ? 0.07 : 0);
+      // Lit from inside, the lantern's pages glow a little brighter.
+      const target = mask ? COVER_GLOW + pulse + (hovered ? 0.7 : 0) : glow + arc * 0.12 + L * 0.2 + (hovered ? 0.07 : 0);
       easing.damp(mats[4 + i], "emissiveIntensity", target, 0.25, delta);
     });
   });
 
   const pick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    // Pages only turn while it is still a book; the lantern and chapters are scrolled through.
+    if (phase.current.lantern > 0.01) return;
     onPick(opened ? number : number + 1);
   };
 
@@ -215,7 +223,7 @@ function useRiffle(page: number, stepMs: number, together: boolean) {
   return shown;
 }
 
-function Book({ faces, page, together, theme, motion, onPick }: { faces: FaceTextures[]; page: number; together: boolean; theme: BookTheme; motion: Motion; onPick: (p: number) => void }) {
+function Book({ faces, page, together, theme, phase, motion, onPick }: { faces: FaceTextures[]; page: number; together: boolean; theme: BookTheme; phase: React.RefObject<Phase>; motion: Motion; onPick: (p: number) => void }) {
   const shown = useRiffle(page, motion.turnMs / 6, together);
   // The last move of the displayed page, so sheets turning together can set off in order.
   const prevShown = useRef(shown);
@@ -229,6 +237,9 @@ function Book({ faces, page, together, theme, motion, onPick }: { faces: FaceTex
   const opening = useRef(shown > 0 && shown < faces.length ? 1 : 0);
   const inFlight = useRef<boolean[]>([]);
   const spill = useRef<THREE.PointLight>(null!);
+  const core = useRef<THREE.PointLight>(null!);
+  const coreGlow = useRef<THREE.MeshBasicMaterial>(null!);
+  const spin = useRef(0);
   const flash = useRef(0);
   const sheets = faces.length;
   const still = motion.turnMs <= 1;
@@ -256,12 +267,28 @@ function Book({ faces, page, together, theme, motion, onPick }: { faces: FaceTex
     const x = shown === 0 ? -PAGE_WIDTH / 2 : shown === sheets ? PAGE_WIDTH / 2 : 0;
     // Closed, it hovers and sways to show its depth; open, it steadies so the pages can be read.
     const bob = still ? 0 : Math.sin(t * 0.9) * (open ? 0.015 : 0.045);
-    easing.damp3(rig.current.position, [x, bob, 0], 1.1, delta);
+    // In the lantern the spine is centred, the lantern tips back to show its glowing top and
+    // turns slowly on its own.
+    const { lantern: L, chapters: C } = phase.current;
+    if (!still) spin.current += delta * 0.22 * L;
+    // As the chapters leave, the lantern draws back and sinks below the thread.
+    const away = smooth(C, 0, 0.12);
+    easing.damp3(rig.current.position, [x * (1 - L), bob - 0.9 * away, -1.2 * away], 1.1, delta);
+    rig.current.scale.setScalar(1 - 0.45 * away);
     const sway = still ? 0 : Math.sin(t * 0.35);
     const rot: [number, number, number] = open
       ? [-0.18 - py * 0.05, px * 0.09, 0]
       : [-0.1 - py * 0.14, sway * 0.22 + px * 0.3, still ? 0 : Math.sin(t * 0.5) * 0.03];
-    easing.dampE(rig.current.rotation, rot, open ? 0.8 : 1.1, delta);
+    const lanternRot: [number, number, number] = [
+      THREE.MathUtils.lerp(rot[0], -0.62 - py * 0.05, L),
+      rot[1] * (1 - L) + spin.current,
+      rot[2] * (1 - L),
+    ];
+    easing.dampE(rig.current.rotation, lanternRot, open ? 0.8 : 1.1, delta);
+    // The lantern's light, dimming as the chapters carry the view away from it.
+    const lamp = L * (1 - 0.6 * C) * (still ? 1 : 1 + Math.sin(t * 1.6) * 0.08);
+    core.current.intensity = lamp * 3.2;
+    coreGlow.current.opacity = lamp;
 
     flash.current = Math.max(0, flash.current - delta * 0.9);
     const glow = open ? 0.55 + (still ? 0 : Math.sin(t * 1.7) * 0.12) + flash.current * 1.6 : flash.current * 1.2;
@@ -272,7 +299,14 @@ function Book({ faces, page, together, theme, motion, onPick }: { faces: FaceTex
     <group ref={rig}>
       {/* Light rising out of the open pages. */}
       <pointLight ref={spill} position={[0, 0.25, 1.1]} color="#8ff0e2" intensity={0} distance={3.5} decay={1.4} />
+      {/* The lantern's light, along the spine at its heart. */}
+      <pointLight ref={core} color={theme === "dark" ? "#8ff0e2" : "#ffb35c"} intensity={0} distance={4} decay={1.2} />
+      <mesh>
+        <cylinderGeometry args={[0.014, 0.014, PAGE_HEIGHT * 0.96, 12]} />
+        <meshBasicMaterial ref={coreGlow} color={theme === "dark" ? "#c8fff6" : "#fff1d6"} transparent opacity={0} toneMapped={false} />
+      </mesh>
       <group rotation-y={-Math.PI / 2}>
+        <Leaves phase={phase} theme={theme} />
         {faces.map((f, i) => (
           <Page
             key={i}
@@ -285,6 +319,7 @@ function Book({ faces, page, together, theme, motion, onPick }: { faces: FaceTex
             opening={opening}
             delay={together ? togetherDelay(i, move.current.from, move.current.to) : 0}
             inFlight={inFlight}
+            phase={phase}
             motion={motion}
             onPick={onPick}
           />
@@ -332,7 +367,7 @@ function Halo({ still, theme }: { still: boolean; theme: BookTheme }) {
  * Keeps the book filling the view. On portrait screens an open book is too wide to read, so the
  * camera frames the right-hand page (the text) and lets the illustration show at the edge.
  */
-function Fit({ page, sheets }: { page: number; sheets: number }) {
+function Fit({ page, sheets, phase }: { page: number; sheets: number; phase: React.RefObject<Phase> }) {
   const { camera, size } = useThree();
   useFrame((_, delta) => {
     const cam = camera as THREE.PerspectiveCamera;
@@ -343,8 +378,9 @@ function Fit({ page, sheets }: { page: number; sheets: number }) {
     const width = portrait ? PAGE_WIDTH * 1.2 : PAGE_WIDTH * 2 + 0.3;
     const byWidth = width / 2 / (Math.tan(v) * aspect);
     const byHeight = (PAGE_HEIGHT + 0.5) / 2 / Math.tan(v);
-    easing.damp(cam.position, "z", Math.max(byWidth, byHeight), 0.4, delta);
-    easing.damp(cam.position, "x", portrait && open ? PAGE_WIDTH * 0.42 : 0, 0.6, delta);
+    // The open lantern is wider than the book: pull back to show all of it.
+    easing.damp(cam.position, "z", Math.max(byWidth, byHeight) * (1 + 0.55 * phase.current.lantern), 0.4, delta);
+    easing.damp(cam.position, "x", portrait && open && phase.current.lantern < 0.5 ? PAGE_WIDTH * 0.42 : 0, 0.6, delta);
   });
   return null;
 }
@@ -354,19 +390,26 @@ export default function BookScene({
   page,
   together = false,
   theme,
+  story,
   motion,
   onPick,
+  onOpen,
 }: {
   canvases: SheetFaces[];
   page: number;
   /** Move every sheet at once (closing or reopening the book) instead of one by one. */
   together?: boolean;
   theme: BookTheme;
+  /** How far the reader has scrolled through the book's section, 0 to 1. */
+  story: React.RefObject<number>;
   motion: Motion;
   onPick: (p: number) => void;
+  /** Open a chapter's case study (clicking its page on the thread). */
+  onOpen: (chapter: number) => void;
 }) {
   const still = motion.turnMs <= 1;
   const dark = theme === "dark";
+  const phase = useRef<Phase>(phaseAt(0));
   return (
     <Canvas
       shadows
@@ -376,9 +419,15 @@ export default function BookScene({
       gl={{ antialias: true, alpha: true }}
       onPointerMissed={() => (document.body.style.cursor = "")}
     >
+      <StoryClock story={story} phase={phase} still={still} />
       <Halo still={still} theme={theme} />
       <Textures canvases={canvases}>
-        {(faces) => <Book faces={faces} page={page} together={together} theme={theme} motion={motion} onPick={onPick} />}
+        {(faces) => (
+          <World phase={phase}>
+            <Book faces={faces} page={page} together={together} theme={theme} phase={phase} motion={motion} onPick={onPick} />
+            <Constellation faces={faces} phase={phase} theme={theme} onOpen={onOpen} />
+          </World>
+        )}
       </Textures>
       <ambientLight intensity={dark ? 0.55 : 1.05} />
       <directionalLight position={[1.6, 3.6, 3]} intensity={dark ? 0.85 : 1.1} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
@@ -388,8 +437,177 @@ export default function BookScene({
       <Sparkles count={70} scale={[6, 3.6, 2.4]} size={2.2} speed={still ? 0 : 0.25} opacity={dark ? 0.55 : 0.45} color={dark ? "#6fe6d6" : "#0b8a7c"} />
       <Sparkles count={16} scale={[5, 3, 2]} size={3.2} speed={still ? 0 : 0.18} opacity={dark ? 0.7 : 0.55} color={dark ? "#f0b44c" : "#b26b00"} />
       <ContactShadows position={[0, -0.95, 0]} opacity={dark ? 0.75 : 0.3} scale={5} blur={3} far={2.2} />
-      <Fit page={page} sheets={canvases.length} />
+      <Fit page={page} sheets={canvases.length} phase={phase} />
     </Canvas>
+  );
+}
+
+/** Turns the raw scroll position into the story's phase each frame, smoothed so it glides. */
+function StoryClock({ story, phase, still }: { story: React.RefObject<number>; phase: React.RefObject<Phase>; still: boolean }) {
+  const s = useRef(story.current);
+  useFrame((_, delta) => {
+    if (still) s.current = story.current;
+    else easing.damp(s, "current", story.current, 0.22, delta);
+    phase.current = phaseAt(s.current);
+  });
+  return null;
+}
+
+/**
+ * Blank leaves that fill the lantern's circle between the real sheets, so it reads as a full fan
+ * of paper. Hidden while the book is closed (they would sit inside it).
+ */
+function Leaves({ phase, theme }: { phase: React.RefObject<Phase>; theme: BookTheme }) {
+  const ref = useRef<THREE.InstancedMesh>(null!);
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(PAGE_WIDTH * 0.97, PAGE_HEIGHT * 0.97);
+    g.translate((PAGE_WIDTH * 0.97) / 2, 0, 0);
+    return g;
+  }, []);
+  const material = useMemo(
+    () =>
+      theme === "dark"
+        ? new THREE.MeshStandardMaterial({ color: "#0c1614", emissive: "#2a8c80", emissiveIntensity: 0.12, side: THREE.DoubleSide, roughness: 0.9, transparent: true, depthWrite: false })
+        : new THREE.MeshStandardMaterial({ color: "#f6f2ea", emissive: "#ffcf8a", emissiveIntensity: 0.1, side: THREE.DoubleSide, roughness: 0.9, transparent: true, depthWrite: false }),
+    [theme],
+  );
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => material.dispose(), [material]);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  useFrame(() => {
+    const L = phase.current.lantern;
+    ref.current.visible = L > 0.015;
+    if (!ref.current.visible) return;
+    for (let j = 0; j < LEAVES; j++) {
+      dummy.rotation.set(0, leafAngle(j, L), 0);
+      dummy.updateMatrix();
+      ref.current.setMatrixAt(j, dummy.matrix);
+    }
+    ref.current.instanceMatrix.needsUpdate = true;
+    material.opacity = Math.min(0.55, L * 4);
+  });
+  return <instancedMesh ref={ref} args={[geometry, material, LEAVES]} frustumCulled={false} />;
+}
+
+/** Moves the whole scene so the chapter in view sits beside its panel as the thread unrolls. */
+function World({ phase, children }: { phase: React.RefObject<Phase>; children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null!);
+  const { size } = useThree();
+  useFrame(() => {
+    const p = phase.current;
+    const k = smooth(p.chapters, 0, 0.1);
+    const portrait = size.width / size.height < 0.85;
+    const [x, y, z] = threadAt(p.focus);
+    // Desktop: the page sits left of centre with its panel on the right. Phones: above the panel.
+    const offset = portrait ? [0, 0.3] : [-0.85, 0];
+    ref.current.position.set(k * (offset[0] - x), k * (offset[1] - y), -k * z);
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
+const CARD_W = 1.4;
+const CARD_H = CARD_W / 0.7485;
+
+/**
+ * The six chapters leaving the lantern: each page flies out along an arc to its place on a
+ * glowing thread that winds away from the book, with a lit point at each stop and one at the end.
+ */
+function Constellation({
+  faces,
+  phase,
+  theme,
+  onOpen,
+}: {
+  faces: FaceTextures[];
+  phase: React.RefObject<Phase>;
+  theme: BookTheme;
+  onOpen: (chapter: number) => void;
+}) {
+  const dark = theme === "dark";
+  const cards = useRef<(THREE.Mesh | null)[]>([]);
+  const nodes = useRef<(THREE.Mesh | null)[]>([]);
+  const thread = useMemo(() => {
+    const pts = [new THREE.Vector3(0, 0, 0), ...Array.from({ length: CHAPTERS + 1 }, (_, i) => new THREE.Vector3(...threadPoint(i)))];
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 420, 0.009, 6);
+  }, []);
+  useEffect(() => () => thread.dispose(), [thread]);
+  const threadMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const v = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame((state) => {
+    const p = phase.current;
+    // Cards sit in the Constellation group, inside World: the World group is what moves.
+    const world = cards.current[0]?.parent?.parent;
+    const worldZ = world ? world.position.z : 0;
+    // The thread draws itself just ahead of the view.
+    const reveal = p.chapters > 0 ? Math.min(1, (p.focus + 1.6) / (CHAPTERS + 1)) : 0;
+    thread.setDrawRange(0, Math.floor((thread.index?.count ?? 0) * reveal));
+    threadMat.current.opacity = Math.min(0.85, p.chapters * 12);
+
+    for (let i = 0; i < CHAPTERS; i++) {
+      const card = cards.current[i];
+      if (!card) continue;
+      const d = departure(i, p);
+      card.visible = d > 0.002;
+      if (!card.visible) continue;
+      const [x, y, z] = threadPoint(i);
+      const e = 1 - (1 - d) ** 3;
+      // Out of the lantern along an arc, turning to face the reader as it goes.
+      card.position.set(x * e, y * e + Math.sin(d * Math.PI) * 0.55, z * e);
+      card.scale.setScalar(0.3 + 0.7 * e);
+      card.rotation.set(0, (1 - e) * 1.2 + Math.sin(state.clock.elapsedTime * 0.6 + i) * 0.04, 0);
+      // Fade pages the view has passed, before they come too close.
+      const mat = card.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.min(1, d * 3) * (1 - smooth(card.position.z + worldZ, 1.2, 2.6));
+    }
+    for (let i = 0; i <= CHAPTERS; i++) {
+      const node = nodes.current[i];
+      if (!node) continue;
+      v.set(...threadPoint(i));
+      const shown = reveal * (CHAPTERS + 1) > i + 1;
+      node.scale.setScalar(shown ? (i === CHAPTERS ? 2.2 : 1) * (1 + Math.sin(state.clock.elapsedTime * 2 + i) * 0.15) : 0.001);
+    }
+  });
+
+  return (
+    <group>
+      <mesh geometry={thread} frustumCulled={false}>
+        <meshBasicMaterial
+          ref={threadMat}
+          color={dark ? "#6fe6d6" : "#0b8a7c"}
+          transparent
+          opacity={0}
+          blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      {Array.from({ length: CHAPTERS + 1 }, (_, i) => (
+        <mesh key={`node-${i}`} ref={(m) => void (nodes.current[i] = m)} position={threadPoint(i)}>
+          <sphereGeometry args={[0.035, 16, 16]} />
+          <meshBasicMaterial color={dark ? "#f0b44c" : "#b26b00"} toneMapped={false} />
+        </mesh>
+      ))}
+      {Array.from({ length: CHAPTERS }, (_, i) => (
+        <mesh
+          key={`card-${i}`}
+          ref={(m) => void (cards.current[i] = m)}
+          visible={false}
+          renderOrder={2}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(i);
+          }}
+          onPointerEnter={() => (document.body.style.cursor = "pointer")}
+          onPointerLeave={() => (document.body.style.cursor = "")}
+        >
+          <planeGeometry args={[CARD_W, CARD_H]} />
+          {/* The chapter's own left page: its illustration, number and headline. */}
+          {/* Drawn last and over the thread, so the thread arriving from the previous stop passes
+              behind the page instead of across it. */}
+          <meshBasicMaterial map={faces[i + 1].back} transparent side={THREE.DoubleSide} toneMapped={false} depthTest={false} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 

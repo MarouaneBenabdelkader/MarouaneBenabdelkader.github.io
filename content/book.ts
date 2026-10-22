@@ -28,6 +28,10 @@ export const book = {
   directClient: { en: "Direct client", fr: "Client direct" },
   classic: { en: "Prefer a classic page? See the full portfolio", fr: "Vous préférez une page classique ? Voir le portfolio complet" },
   chapter: { en: "Chapter", fr: "Chapitre" },
+  lanternHint: {
+    en: "Keep scrolling: the chapters are about to leave the book",
+    fr: "Continuez à défiler : les chapitres vont quitter le livre",
+  },
   challengeLabel: { en: "The challenge", fr: "Le défi" },
   howLabel: { en: "How it works", fr: "Comment ça marche" },
   resultLabel: { en: "Where it stands", fr: "Où en est le projet" },

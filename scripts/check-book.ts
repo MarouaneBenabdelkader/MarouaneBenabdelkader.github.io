@@ -1,5 +1,6 @@
 // Checks the book's page stacking: a page being turned must never sink below the sheets it
 // is leaving or landing on, or their content flashes through it at the start or end of a turn.
+import { activeChapter, CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
 import { BEND_SHAPE, boneTwist, bowFactor, bowOverTurn, OPEN_SHAPE, PAGE_HEIGHT, PAGE_SEGMENTS, PAGE_WIDTH, sheetHeight, STACK_GAP, togetherDelay, TURN_BEND, TURN_LIFT } from "../components/book/stack";
 
 const SHEETS = 8;
@@ -151,8 +152,42 @@ for (let step = 1; step < 100; step++) {
   }
 }
 
+
+// The scroll story: the lantern's sheets and leaves never share an angle (they would flicker),
+// the covers stop short of each other, every chapter page has arrived by the time the view
+// reaches it, and each chapter is shown in turn.
+{
+  const story: string[] = [];
+  const deg = (r: number) => (r * 180) / Math.PI;
+  const apart = (a: number, b: number) => {
+    const d = Math.abs(((a - b) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+    return deg(d);
+  };
+  const sheetAngles = Array.from({ length: SHEETS }, (_, n) => lanternAngle(n, SHEETS));
+  if (apart(sheetAngles[0], sheetAngles[SHEETS - 1]) < 2) story.push("the covers meet in one plane behind the spine");
+  for (let j = 0; j < LEAVES; j++) {
+    for (const a of sheetAngles) if (apart(leafAngle(j, 1), a) < 0.5) story.push(`leaf ${j} sits on a sheet`);
+  }
+  let last = -1;
+  const seen: number[] = [];
+  for (let k = 0; k <= 1000; k++) {
+    const p = phaseAt(k / 1000);
+    const i = activeChapter(p);
+    if (i !== null && i !== last) seen.push(i);
+    if (i !== null) last = i;
+    // Once the view has moved on past a chapter, its page must be in place on the thread.
+    for (let c = 0; c < CHAPTERS; c++) {
+      if (p.chapters > 0.02 && p.focus >= c + 0.25 && departure(c, p) < 0.98) story.push(`chapter ${c} is not in place when the view passes it (s=${k / 1000})`);
+    }
+  }
+  if (seen.join(",") !== Array.from({ length: CHAPTERS }, (_, i) => i).join(",")) story.push(`chapters shown out of order: ${seen.join(",")}`);
+  if (phaseAt(1).focus !== CHAPTERS) story.push("the thread does not reach its end");
+  failures.push(...story.slice(0, 5));
+}
+
 if (failures.length) {
-  console.error(`FAIL: ${failures.length} stacking errors\n- ` + failures.slice(0, 8).join("\n- "));
+  console.error(`FAIL: ${failures.length} book errors\n- ` + failures.slice(0, 8).join("\n- "));
   process.exit(1);
 }
 console.log("PASS: book stacking (a turning page always stays on top)");
+console.log("PASS: book story (lantern angles, chapters in order and in place)");
