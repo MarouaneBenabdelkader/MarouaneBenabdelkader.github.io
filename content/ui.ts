@@ -30,6 +30,13 @@ export const ui = {
   },
   directTitle: { en: "Direct clients", fr: "Clients directs" },
   readCase: { en: "Read case study", fr: "Lire l'étude de cas" },
+  seeInBook: { en: "See it in the book", fr: "Le voir dans le livre" },
+  bookTeaserTitle: { en: "The book", fr: "Le livre" },
+  bookTeaser: {
+    en: "The same work, told as a 3D book: leaf through six chapters, then scroll to watch it open into a lantern and unfold my path.",
+    fr: "Le même travail, raconté dans un livre en 3D : feuilletez six chapitres, puis défilez pour le voir s'ouvrir en lanterne et dérouler mon parcours.",
+  },
+  openBook: { en: "Open the book", fr: "Ouvrir le livre" },
   visitSite: { en: "Visit live site", fr: "Voir le site en ligne" },
   experienceTitle: { en: "Experience", fr: "Expérience" },
   personalTitle: { en: "Personal project", fr: "Projet personnel" },

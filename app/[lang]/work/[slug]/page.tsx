@@ -58,7 +58,8 @@ export default async function CaseStudy({ params }: { params: Params }) {
   return (
     <article className="mx-auto max-w-6xl px-4 pb-20 sm:px-8">
       <ScrollProgress />
-      <header className="rise pb-12 pt-10 md:pt-16">
+      <header className="rise grid gap-10 pb-12 pt-10 md:grid-cols-[minmax(0,1fr)_17rem] md:items-end md:pt-16 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0">
         <Link href={`/${lang}/#work`} className="text-sm text-muted hover:text-ink">
           {tr(ui.backHome, lang)}
         </Link>
@@ -78,6 +79,19 @@ export default async function CaseStudy({ params }: { params: Params }) {
             </a>
           )}
         </div>
+        </div>
+        {/* The project's page from the book: glowing lines in the dark theme, ink in the light one. */}
+        <figure aria-hidden className="relative mx-auto w-full max-w-xs overflow-hidden rounded-2xl border border-line shadow-xl shadow-black/15 md:mx-0 md:max-w-none">
+          <img src={`/book/light/${slug}.jpg`} alt="" width={1536} height={2057} className="block aspect-[3/4] w-full object-cover dark:hidden" />
+          <img src={`/book/dark/${slug}.jpg`} alt="" width={1536} height={2057} className="hidden aspect-[3/4] w-full object-cover dark:block" />
+          <Link
+            href={`/${lang}/book/`}
+            tabIndex={-1}
+            className="absolute inset-x-3 bottom-3 rounded-full bg-paper/85 px-3 py-1.5 text-center text-xs font-semibold text-accent-ink backdrop-blur transition-colors hover:bg-paper"
+          >
+            {tr(ui.seeInBook, lang)}
+          </Link>
+        </figure>
       </header>
 
       <Block title={tr(ui.context, lang)}>

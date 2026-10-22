@@ -35,7 +35,7 @@ function ProjectRow({ project, lang, index }: { project: Project; lang: Lang; in
     <li
       data-reveal
       style={{ "--i": index % 2 } as React.CSSProperties}
-      className="group relative -mx-4 grid gap-3 rounded-2xl border-t border-line px-4 py-7 transition-colors first:border-t-0 hover:bg-raised lg:grid-cols-[1fr_13rem] lg:gap-10"
+      className="group relative -mx-4 rounded-2xl border-t border-line px-4 py-7 transition-colors first:border-t-0 hover:bg-raised"
     >
       <div>
         <p className="text-sm text-muted">{tr(project.sector, lang)}</p>
@@ -45,14 +45,14 @@ function ProjectRow({ project, lang, index }: { project: Project; lang: Lang; in
           </Link>
         </h4>
         <p className="mt-2 max-w-2xl leading-relaxed text-muted">{tr(project.summary, lang)}</p>
+        <div className="mt-4">
+          <Chips items={project.stack} />
+        </div>
         <MiniFlow slug={project.slug} lang={lang} />
         <p className="mt-3 text-sm font-semibold text-accent-ink underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-current">
           {tr(ui.readCase, lang)}
           <span aria-hidden className="ml-1 inline-block transition-transform group-hover:translate-x-1">›</span>
         </p>
-      </div>
-      <div className="lg:pt-7">
-        <Chips items={project.stack} />
       </div>
     </li>
   );
