@@ -44,3 +44,7 @@ Every text field has an `en` and a `fr` version. Pushing to `main` builds and de
 
 - Email: [benabdelkader.marouane@proton.me](mailto:benabdelkader.marouane@proton.me)
 - LinkedIn: [marouanebenabdelkader](https://www.linkedin.com/in/marouanebenabdelkader/)
+
+## License
+
+The code is released under the [MIT License](LICENSE). The resume, photos, logos, book artwork and written content are not covered by it and remain all rights reserved.
