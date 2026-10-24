@@ -8,7 +8,7 @@
  * so spreads 2..7 are projects 1..6.
  */
 
-export const PAGE_PX = { w: 1024, h: 1368 };
+const PAGE_PX = { w: 1024, h: 1368 };
 
 export type BookTheme = "light" | "dark";
 

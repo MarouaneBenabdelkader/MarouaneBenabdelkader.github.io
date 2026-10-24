@@ -1,7 +1,7 @@
 import { tr, type Lang, type T } from "@/content/types";
 import type { Diagram, StageKind } from "@/content/diagrams";
 
-export const KIND_LABEL: Record<StageKind, T> = {
+const KIND_LABEL: Record<StageKind, T> = {
   io: { en: "Input / output", fr: "Entrée / sortie" },
   ai: { en: "AI / agent", fr: "IA / agent" },
   logic: { en: "Rules & processing", fr: "Règles & traitement" },

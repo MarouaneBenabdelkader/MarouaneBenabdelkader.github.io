@@ -82,7 +82,7 @@ export const journey = {
   readChapters: { en: "Read the chapters", fr: "Lire les chapitres" },
 };
 
-export type Chapter ={ headline: T; hook: T; how: [T, T, T]; result: T };
+export type Chapter = { headline: T; hook: T; how: [T, T, T]; result: T };
 
 /** Book-specific copy for each project, written to be read on a page rather than scanned on a site. */
 export const chapters: Record<string, Chapter> = {

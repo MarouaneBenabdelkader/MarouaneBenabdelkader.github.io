@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Lang } from "@/content/types";
 
 /** Swaps the language segment so /en/work/x/ and /fr/work/x/ point at each other. */
-export function switchLangPath(pathname: string, to: Lang) {
+function switchLangPath(pathname: string, to: Lang) {
   const rest = pathname.replace(/^\/(en|fr)(?=\/|$)/, "").replace(/\/+$/, "");
   return `/${to}${rest}/`;
 }

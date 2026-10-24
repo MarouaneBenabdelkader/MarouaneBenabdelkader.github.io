@@ -24,7 +24,7 @@ export function bowOverTurn(q: number) {
 }
 // Mid-turn the paper also twists a little about its length (top and bottom edges tilt opposite
 // ways). FOLD is the twist of the whole page, in radians, at the middle of a turn.
-export const FOLD = 0.12;
+const FOLD = 0.12;
 
 /**
  * Twist of each bone at a point in a turn (arc 0 at rest, 1 mid-turn). Bones are chained, so
@@ -50,7 +50,7 @@ export function sheetHeight(number: number, sheets: number, eased: number, arc: 
 }
 
 // Gap between sheets setting off when several turn together.
-export const STAGGER_MS = 110;
+const STAGGER_MS = 110;
 
 /**
  * Delay before a sheet starts moving when several turn together (closing on scroll, or reopening).

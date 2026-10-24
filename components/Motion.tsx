@@ -76,7 +76,6 @@ export function HeroPortrait({ src, alt }: { src: string; alt: string }) {
   }
   return (
     <div className="absolute inset-0" onPointerMove={onMove} onPointerLeave={onLeave}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={ref}
         src={src}
