@@ -1,6 +1,6 @@
 // Checks the book's page stacking: a page being turned must never sink below the sheets it
 // is leaving or landing on, or their content flashes through it at the start or end of a turn.
-import { activeChapter, BOOK_UNTIL, CHAPTERS, FIRST_CHAPTER_AT, departure, spiralPoint, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
+import { activeChapter, BOOK_UNTIL, CHAPTERS, FIRST_CHAPTER_AT, STOP_AT, departure, spiralPoint, lanternAngle, leafAngle, LEAVES, phaseAt } from "../components/book/story";
 import { BEND_SHAPE, boneTwist, bowFactor, bowOverTurn, OPEN_SHAPE, PAGE_HEIGHT, PAGE_SEGMENTS, PAGE_WIDTH, sheetHeight, STACK_GAP, togetherDelay, TURN_BEND, TURN_LIFT } from "../components/book/stack";
 
 const SHEETS = 8;
@@ -204,6 +204,13 @@ for (let step = 1; step < 100; step++) {
     for (let c = 0; c < CHAPTERS; c++) {
       if (s0 <= 0.3 && departure(c, phaseAt(s0)) > 0) story.push(`chapter ${c} has already left the book at s=${s0.toFixed(3)}`);
     }
+  }
+  // Each resting place of the spiral shows its own stop, in order, the last at the thread's end.
+  for (let k = 0; k <= CHAPTERS; k++) {
+    const p = phaseAt(STOP_AT[k]);
+    if (k > 0 && !(STOP_AT[k] > STOP_AT[k - 1])) story.push(`stop ${k} rests at s=${STOP_AT[k]} before stop ${k - 1}`);
+    if (k < CHAPTERS && activeChapter(p) !== k) story.push(`resting on stop ${k} shows ${activeChapter(p)}`);
+    if (Math.abs(p.focus - k) > 0.02) story.push(`resting on stop ${k} the spiral faces ${p.focus.toFixed(3)}`);
   }
   failures.push(...story.slice(0, 5));
 }

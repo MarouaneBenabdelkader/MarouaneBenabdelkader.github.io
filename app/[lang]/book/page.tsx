@@ -103,6 +103,7 @@ export default async function BookPage({ params }: { params: Promise<{ lang: str
       readCase: tr(ui.readCase, lang),
       email: profile.email,
       lanternHint: tr(book.lanternHint, lang),
+      travelHint: tr(book.travelHint, lang),
       contact: tr(book.backTitle, lang),
       linkedin: profile.linkedin,
       readChapters: tr(journey.readChapters, lang),

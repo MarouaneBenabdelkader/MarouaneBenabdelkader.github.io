@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildFaces, journeyCard, type BookContent, type BookTheme } from "./pages";
-import { activeChapter, BOOK_UNTIL, departure, FIRST_CHAPTER_AT, phaseAt } from "./story";
+import { activeChapter, BOOK_UNTIL, CHAPTERS_FROM, departure, FIRST_CHAPTER_AT, phaseAt, STOP_AT, TRAVEL_FROM, TRAVEL_TO } from "./story";
 import type { Motion } from "./BookScene";
 
 const BookScene = dynamic(() => import("./BookScene"), { ssr: false });
@@ -29,6 +29,7 @@ export type BookProps = {
     readCase: string;
     email: string;
     lanternHint: string;
+    travelHint: string;
     contact: string;
     linkedin: string;
     readChapters: string;
@@ -95,6 +96,10 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
   // the scene; the stage only changes when a panel should.
   const story = useRef(0);
   const [stage, setStage] = useState<Stage>({ kind: "book" });
+  // From the passage until the first page sets off, a title card names where the reader is going.
+  const [titled, setTitled] = useState(false);
+  // Once into the passage, the lantern's scroll hint has done its job.
+  const [passing, setPassing] = useState(false);
   const stageRef = useRef(stage);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -179,26 +184,59 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
     // first chapter (the book closes, opens into the lantern and the first chapter flies out on
     // the way); scrolling back up from there glides back to the book.
     const GLIDE_MS = 2600;
+    // Going in, the book closes and the lantern opens at that same pace; then the passage through
+    // it slows into a moment of its own, comes to rest in open space while the title card holds,
+    // and the first page flies in. The first two spans meet at PASS_SPEED, so the pace changes
+    // without a jolt.
+    const OPEN_MS = 1700;
+    const PASS_MS = 1900;
+    const HOLD_TITLE_MS = 800;
+    const ARRIVE_MS = 1300;
+    const PASS_SPEED = 6e-5; // story per millisecond
+    const hermite = (u: number, p0: number, p1: number, m0: number, m1: number) =>
+      (2 * u ** 3 - 3 * u ** 2 + 1) * p0 + (u ** 3 - 2 * u ** 2 + u) * m0 + (-2 * u ** 3 + 3 * u ** 2) * p1 + (u ** 3 - u ** 2) * m1;
+    const OPENING_MS = OPEN_MS + PASS_MS + HOLD_TITLE_MS + ARRIVE_MS;
+    const opening = (from: number) => (ms: number) => {
+      if (ms < OPEN_MS) return hermite(ms / OPEN_MS, from, TRAVEL_FROM, 0, PASS_SPEED * OPEN_MS);
+      ms -= OPEN_MS;
+      if (ms < PASS_MS) return hermite(ms / PASS_MS, TRAVEL_FROM, TRAVEL_TO, PASS_SPEED * PASS_MS, 0);
+      ms -= PASS_MS + HOLD_TITLE_MS;
+      if (ms < 0) return TRAVEL_TO;
+      const t = Math.min(1, ms / ARRIVE_MS);
+      return TRAVEL_TO + (FIRST_CHAPTER_AT - TRAVEL_TO) * (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+    };
+    // Between stops one scroll gesture glides to the next one: slow enough to watch the spiral
+    // turn and the next page come forward, and the wheel is held meanwhile so it cannot fight it.
+    const STEP_MS = 1900;
+    const HOLD_MS = 450;
     let glide: number | null = null;
+    let heldUntil = 0;
     let lastS = 0;
     const scrollFor = (s: number) => {
       const rect = section!.getBoundingClientRect();
       const travel = Math.max(1, rect.height - window.innerHeight);
       return rect.top + window.scrollY + s * travel;
     };
-    const glideTo = (s: number) => {
-      const from = window.scrollY;
-      const to = scrollFor(s);
+    // Glides the page along `path` (story position by milliseconds elapsed) for `ms`.
+    const glideTo = (s: number, ms = GLIDE_MS, path?: (elapsed: number) => number) => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        window.scrollTo({ top: to, behavior: "instant" });
+        window.scrollTo({ top: scrollFor(s), behavior: "instant" });
         return;
       }
+      const from = story.current;
+      const along =
+        path ??
+        ((elapsed: number) => {
+          const t = Math.min(1, elapsed / ms);
+          return from + (s - from) * (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+        });
       const start = performance.now();
       const step = (now: number) => {
-        const t = Math.min(1, (now - start) / GLIDE_MS);
-        const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-        window.scrollTo({ top: from + (to - from) * e, behavior: "instant" });
+        const t = Math.min(1, (now - start) / ms);
+        window.scrollTo({ top: scrollFor(t < 1 ? along(now - start) : s), behavior: "instant" });
         glide = t < 1 ? requestAnimationFrame(step) : null;
+        // Trackpads keep sending a gesture's momentum after it ends; let it die out first.
+        if (glide === null) heldUntil = performance.now() + HOLD_MS;
       };
       if (glide !== null) cancelAnimationFrame(glide);
       glide = requestAnimationFrame(step);
@@ -212,9 +250,20 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
       if (glide === null) {
         // Any scroll away from the book starts it; a single wheel step moves s by about 0.015.
         const between = s > 0.001 && s < FIRST_CHAPTER_AT - 0.002;
-        if (between && s > lastS && lastS <= BOOK_UNTIL) glideTo(FIRST_CHAPTER_AT);
+        if (between && s > lastS && lastS <= BOOK_UNTIL) glideTo(FIRST_CHAPTER_AT, OPENING_MS, opening(s));
         else if (between && s < lastS && lastS >= FIRST_CHAPTER_AT - 0.002) glideTo(0);
+        else if (s >= FIRST_CHAPTER_AT - 0.002 && performance.now() >= heldUntil) {
+          // On the thread: carry on to the next stop the way the reader is scrolling. Past the
+          // last one the page scrolls on normally, out of the book's section.
+          const end = STOP_AT[STOP_AT.length - 1];
+          if (s > lastS && s < end - 0.002) glideTo(STOP_AT.find((at) => at > s + 0.002) ?? end, STEP_MS);
+          else if (s < lastS && s > FIRST_CHAPTER_AT + 0.002 && s <= end + 0.002) glideTo([...STOP_AT].reverse().find((at) => at < s - 0.002) ?? FIRST_CHAPTER_AT, STEP_MS);
+        }
       }
+      // The title card comes up as the reader enters the passage going in, and makes way just
+      // before the first page sets off; coming back up past the passage, it does not return.
+      if (lastS < TRAVEL_FROM && s >= TRAVEL_FROM && s < CHAPTERS_FROM) setTitled(true);
+      else if (s < TRAVEL_FROM - 0.03 || s >= CHAPTERS_FROM - 0.002) setTitled(false);
       lastS = s;
       const p = pageRef.current;
       if (s > BOOK_UNTIL && p > 0 && p < SHEETS) {
@@ -228,6 +277,7 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         setPage(back);
       }
       const phase = phaseAt(s);
+      setPassing(phase.through > 0);
       // Between two stops the panel follows the page nearest the front once it is most of the way
       // there, so the text always matches the page the reader is looking at; the lantern hint
       // only shows before any page has left.
@@ -242,12 +292,19 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         setStage(next);
       }
     };
+    // While a glide runs (and as a gesture's momentum dies out after it), the wheel would only
+    // fight it: hold it.
+    const onWheel = (e: WheelEvent) => {
+      if (glide !== null || performance.now() < heldUntil) e.preventDefault();
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("resize", onScroll);
     return () => {
       if (glide !== null) cancelAnimationFrame(glide);
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("resize", onScroll);
     };
   }, []);
@@ -276,6 +333,11 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
   }, [go, page]);
 
   const years = useMemo(() => stops.map((s) => s.dates.match(/\d{4}/)?.[0] ?? ""), [stops]);
+  // The span of the journey, for the title card's time axis.
+  const span = useMemo(() => {
+    const ys = years.filter(Boolean).map(Number);
+    return ys.length > 1 ? [Math.min(...ys), Math.max(...ys)] : null;
+  }, [years]);
 
   const project = page >= 2 && page <= 7 ? content.projects[page - 2] : null;
   const caption = project ? project.title : page === 0 ? ui.coverCaption : page === 1 ? ui.aboutCaption : ui.contactCaption;
@@ -334,9 +396,66 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         )}
 
         {state === "ready" && (
+          // The title card: the words rise into place one after another, then a time axis draws
+          // across the journey's years; it leaves by fading up and out of focus. Hidden, every
+          // part resets only once the fade is over, so nothing moves on the way out.
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-[38%] flex flex-col items-center px-6 text-center"
+            style={{
+              opacity: titled ? 1 : 0,
+              filter: titled ? "none" : "blur(6px)",
+              transform: `translateY(calc(-50% + ${titled ? 0 : -12}px))`,
+              transition: "opacity 700ms ease-out, filter 700ms ease-out, transform 700ms ease-out",
+              textShadow: "0 1px 22px var(--paper)",
+            }}
+          >
+            <p className="font-display text-4xl font-semibold tracking-tight text-ink sm:text-6xl">
+              {ui.travelHint.split(" ").map((word, i, words) => (
+                <span key={i} className="inline-block overflow-hidden pb-[0.1em] align-bottom">
+                  <span
+                    className="inline-block"
+                    style={{
+                      transform: titled ? "none" : "translateY(105%)",
+                      transition: titled ? `transform 900ms cubic-bezier(0.2, 0.8, 0.2, 1) ${150 + i * 110}ms` : "transform 0ms 700ms",
+                    }}
+                  >
+                    {word}
+                    {i < words.length - 1 ? "\u00a0" : ""}
+                  </span>
+                </span>
+              ))}
+            </p>
+            {span && (
+              <div className="mt-5 flex items-center gap-3 text-sm tabular-nums text-muted sm:text-base">
+                <span>{span[0]}</span>
+                <span className="relative h-px w-32 bg-line sm:w-56">
+                  <span
+                    className="absolute inset-0 origin-left bg-accent"
+                    style={{
+                      transform: `scaleX(${titled ? 1 : 0})`,
+                      transition: titled ? "transform 1900ms cubic-bezier(0.45, 0, 0.2, 1) 450ms" : "transform 0ms 700ms",
+                    }}
+                  />
+                  <span
+                    className="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent"
+                    style={{
+                      left: titled ? "100%" : "0%",
+                      boxShadow: "0 0 10px var(--accent)",
+                      transition: titled ? "left 1900ms cubic-bezier(0.45, 0, 0.2, 1) 450ms" : "left 0ms 700ms",
+                    }}
+                  />
+                </span>
+                <span>{span[1]}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {state === "ready" && (
           <p
             className="pointer-events-none absolute inset-x-0 top-4 text-center text-sm text-muted transition-opacity duration-700"
-            style={{ opacity: stage.kind === "lantern" || (stage.kind === "book" && !(touched && page > 0)) ? 1 : 0 }}
+            style={{ opacity: !titled && !passing && (stage.kind === "lantern" || (stage.kind === "book" && !(touched && page > 0))) ? 1 : 0 }}
           >
             {stage.kind === "lantern" ? ui.lanternHint : page === 0 ? ui.hintOpen : ui.hintTurn}
           </p>

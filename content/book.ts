@@ -28,6 +28,10 @@ export const book = {
   directClient: { en: "Direct client", fr: "Client direct" },
   classic: { en: "Prefer a classic page? See the full portfolio", fr: "Vous préférez une page classique ? Voir le portfolio complet" },
   chapter: { en: "Chapter", fr: "Chapitre" },
+  travelHint: {
+    en: "My experience",
+    fr: "Mon parcours",
+  },
   lanternHint: {
     en: "Keep scrolling: my path unfolds from the book",
     fr: "Continuez à défiler : mon parcours se déploie hors du livre",

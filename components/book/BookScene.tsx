@@ -6,7 +6,7 @@ import { easing } from "maath";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { BookTheme, SheetFaces } from "./pages";
-import { CHAPTERS, departure, lanternAngle, leafAngle, LEAVES, phaseAt, smooth, spiralFacing, spiralPoint, SPIRAL_FRONT, SPIRAL_RADIUS, SPIRAL_RISE, SPIRAL_STEP, type Phase } from "./story";
+import { CHAPTERS, departure, fanAt, lanternAngle, leafAngle, LEAVES, phaseAt, smooth, spiralFacing, spiralPoint, SPIRAL_FRONT, SPIRAL_RADIUS, SPIRAL_RISE, SPIRAL_STEP, type Phase } from "./story";
 import { BEND_SHAPE, OPEN_SHAPE, PAGE_HEIGHT, PAGE_WIDTH, PAGE_SEGMENTS, TURN_BEND, boneTwist, bowFactor, bowOverTurn, sheetHeight, togetherDelay } from "./stack";
 
 /**
@@ -168,11 +168,13 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
     // Total rotation: +90 degrees lying right, -90 lying left, plus a hair of fan between sheets.
     // In the lantern, every sheet swings round to its place in the circle instead.
     const L = phase.current.lantern;
+    // This sheet's own share of the opening: the front cover leads, the pages behind cascade after.
+    const fan = fanAt(L, 1 - number / (sheets - 1));
     // Once, after the book has risen: the closed cover lifts a little, as if something inside
     // stirred, and settles back.
     const t = state.clock.elapsedTime;
     const ajar = number === 0 && page === 0 && motion.turnMs > 1 ? 0.22 * Math.sin(Math.PI * smooth(t, 4.4, 6.4)) * (1 - L) : 0;
-    const total = THREE.MathUtils.lerp(Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2), lanternAngle(number, sheets), L) - ajar;
+    const total = THREE.MathUtils.lerp(Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2), lanternAngle(number, sheets), fan) - ajar;
     // Book-local x points at the camera: lift each sheet to its place in its stack, and raise it
     // off the stack while it travels. In the lantern the sheets all meet at the spine.
     group.current.position.x = sheetHeight(number, sheets, eased, arc) * (1 - L);
@@ -185,7 +187,9 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
       const share = THREE.MathUtils.lerp(i === 0 ? 1 : 0, OPEN_SHAPE[i], open);
       // While turning, the free edge leads and the paper bows behind it.
       const bend = stiff ? 0 : -dir * TURN_BEND * BEND_SHAPE[i] * bowOverTurn(journey) * bowAmount.current * (1 - L);
-      node.rotation.y = total * share + bend;
+      // Swinging round into the lantern, the paper flexes against the air and straightens on arrival.
+      const flex = stiff ? 0 : -0.25 * TURN_BEND * BEND_SHAPE[i] * Math.sin(Math.PI * fan);
+      node.rotation.y = total * share + bend + flex;
       node.rotation.x = stiff ? 0 : dir * boneTwist(i, arc) * bowAmount.current * (1 - L);
     }
 
@@ -293,27 +297,30 @@ function Book({ faces, page, together, theme, phase, motion, onPick }: { faces: 
     const bob = still ? 0 : Math.sin(t * 0.9) * (open ? 0.015 : 0.045);
     // In the lantern the spine is centred, the lantern tips back to show its glowing top and
     // turns slowly on its own.
-    const { lantern: L, chapters: C } = phase.current;
+    const { lantern: L, chapters: C, travel, through } = phase.current;
     // The lantern turns slowly; kept within one turn and weighted by how open the lantern is, so
-    // the book always comes back facing the reader when the lantern closes.
-    if (!still) spin.current = (spin.current + delta * 0.22 * L) % (2 * Math.PI);
+    // the book always comes back facing the reader when the lantern closes. On the passage it
+    // whirls, so its pages stream round the reader as they fly through.
+    if (!still) spin.current = (spin.current + delta * (0.22 + 2.4 * travel) * L) % (2 * Math.PI);
     const turned = (spin.current > Math.PI ? spin.current - 2 * Math.PI : spin.current) * L;
-    // As the chapters leave, the lantern draws back and sinks below the thread.
-    const away = smooth(C, 0, 0.12);
-    easing.damp3(rig.current.position, [x * (1 - L), bob - 1.5 * away, -2.6 * away], 1.1, delta);
-    rig.current.scale.setScalar(1 - 0.6 * away);
+    // The passage: the lantern turns its spine toward the reader and comes at them, faster and
+    // faster, until they are through it, down a tunnel of its pages, and out past the back.
+    const dive = smooth(through, 0.08, 0.8);
+    rig.current.visible = through < 0.92;
+    const pass = (state.camera.position.z + PAGE_HEIGHT) * dive ** 1.7;
+    easing.damp3(rig.current.position, [x * (1 - L), bob * (1 - dive) - 0.3 * dive, pass], through > 0 ? 0.1 : 1.1, delta);
     const sway = still ? 0 : Math.sin(t * 0.35);
     const rot: [number, number, number] = open
       ? [-0.18 - py * 0.05, px * 0.09, 0]
       : [-0.1 - py * 0.14, sway * 0.22 + px * 0.3, still ? 0 : Math.sin(t * 0.5) * 0.03];
     const lanternRot: [number, number, number] = [
-      THREE.MathUtils.lerp(rot[0], -0.62 - py * 0.05, L),
+      THREE.MathUtils.lerp(THREE.MathUtils.lerp(rot[0], -0.62 - py * 0.05, L), -Math.PI / 2, smooth(through, 0, 0.4)),
       rot[1] * (1 - L) + turned,
       rot[2] * (1 - L),
     ];
-    easing.dampE(rig.current.rotation, lanternRot, open ? 0.8 : 1.1, delta);
-    // The lantern's light, dimming as the chapters carry the view away from it.
-    const lamp = L * (1 - 0.6 * C) * (still ? 1 : 1 + Math.sin(t * 1.6) * 0.08);
+    easing.dampE(rig.current.rotation, lanternRot, through > 0 ? 0.2 : open ? 0.8 : 1.1, delta);
+    // The lantern's light, flaring as the reader nears its heart, dimming once they are through.
+    const lamp = L * (1 - 0.6 * C) * (1 + 1.5 * travel) * (still ? 1 : 1 + Math.sin(t * 1.6) * 0.08);
     core.current.intensity = lamp * 3.2;
     coreGlow.current.opacity = lamp;
 
@@ -394,10 +401,18 @@ function Halo({ still, theme }: { still: boolean; theme: BookTheme }) {
  * Keeps the book filling the view. On portrait screens an open book is too wide to read, so the
  * camera frames the right-hand page (the text) and lets the illustration show at the edge.
  */
-function Fit({ page, sheets, phase }: { page: number; sheets: number; phase: React.RefObject<Phase> }) {
+function Fit({ page, sheets, phase, still }: { page: number; sheets: number; phase: React.RefObject<Phase>; still: boolean }) {
   const { camera, size } = useThree();
   useFrame((_, delta) => {
     const cam = camera as THREE.PerspectiveCamera;
+    // On the passage into the experience the view widens a little, the way speed stretches it.
+    const fov = 32 + (still ? 0 : 9 * phase.current.travel);
+    // And it banks a little, one way then back, as if taking the tunnel's curve.
+    cam.rotation.z = still ? 0 : 0.05 * Math.sin(2 * Math.PI * phase.current.through);
+    if (Math.abs(cam.fov - fov) > 0.01) {
+      cam.fov = fov;
+      cam.updateProjectionMatrix();
+    }
     const v = THREE.MathUtils.degToRad(cam.fov / 2);
     const aspect = size.width / size.height;
     const portrait = aspect < 0.85;
@@ -475,8 +490,150 @@ export default function BookScene({
       <Sparkles count={Math.round(70 * motes)} scale={[6, 3.6, 2.4]} size={2.2} speed={still ? 0 : 0.25} opacity={dark ? 0.55 : 0.45} color={dark ? "#6fe6d6" : "#0b8a7c"} />
       <Sparkles count={Math.round(16 * motes)} scale={[5, 3, 2]} size={3.2} speed={still ? 0 : 0.18} opacity={dark ? 0.7 : 0.55} color={dark ? "#f0b44c" : "#b26b00"} />
       <ContactShadows position={[0, -0.95, 0]} opacity={dark ? 0.75 : 0.3} scale={5} blur={3} far={2.2} />
-      <Fit page={page} sheets={canvases.length} phase={phase} />
+      {!still && <Warp phase={phase} theme={theme} />}
+      <Fit page={page} sheets={canvases.length} phase={phase} still={still} />
     </Canvas>
+  );
+}
+
+const STREAKS = 140;
+const DRIFT = 36;
+
+/** A soft round burst of light, for the moment the reader passes the lantern's heart. */
+function burstTexture(dark: boolean) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  const rgb = dark ? "200,255,246" : "255,250,238";
+  g.addColorStop(0, `rgba(${rgb},1)`);
+  g.addColorStop(0.5, `rgba(${rgb},0.55)`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+
+/** A loose leaf: a small sheet of the book's paper with a ruled border and a few lines of text. */
+function leafTexture(dark: boolean) {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 172;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = dark ? "#0f2420" : "#fbf8f2";
+  ctx.fillRect(0, 0, 128, 172);
+  ctx.strokeStyle = dark ? "rgba(111,230,214,0.85)" : "rgba(11,138,124,0.7)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(8, 8, 112, 156);
+  ctx.fillStyle = dark ? "rgba(143,240,226,0.55)" : "rgba(19,33,31,0.35)";
+  ctx.fillRect(20, 26, 60, 9);
+  for (let i = 0; i < 7; i++) ctx.fillRect(20, 52 + i * 14, i % 3 === 2 ? 56 : 88, 4);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * The passage from the book into the experience. The lantern itself becomes the tunnel (see
+ * Book); around it, loose leaves swirl past the reader, streaks of light rush out of the depth,
+ * and light bursts as the reader passes the lantern's heart. Nothing is drawn outside the passage.
+ */
+function Warp({ phase, theme }: { phase: React.RefObject<Phase>; theme: BookTheme }) {
+  const dark = theme === "dark";
+  const root = useRef<THREE.Group>(null!);
+  const lines = useRef<THREE.LineSegments>(null!);
+  const mat = useRef<THREE.LineBasicMaterial>(null!);
+  const leaves = useRef<THREE.InstancedMesh>(null!);
+  const burst = useRef<THREE.Mesh>(null!);
+  const burstMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const leaf = useMemo(() => new THREE.PlaneGeometry(0.2, 0.27), []);
+  useEffect(() => () => leaf.dispose(), [leaf]);
+  const burstMap = useMemo(() => burstTexture(dark), [dark]);
+  useEffect(() => () => burstMap.dispose(), [burstMap]);
+  const leafMap = useMemo(() => leafTexture(dark), [dark]);
+  useEffect(() => () => leafMap.dispose(), [leafMap]);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const { geometry, seeds } = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(STREAKS * 6), 3));
+    // Fixed per streak: direction around the axis, distance from it, start depth, speed.
+    const seeds = Array.from({ length: STREAKS }, (_, i) => {
+      const r = (i * 0.618034) % 1;
+      return { a: i * 2.39996, d: 0.5 + 2.6 * Math.sqrt(r), z: (i * 0.37) % 1, v: 0.7 + 0.6 * ((i * 0.7548) % 1) };
+    });
+    return { geometry: g, seeds };
+  }, []);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  const run = useRef(0);
+  useFrame((state, delta) => {
+    const { travel: t, through } = phase.current;
+    root.current.visible = t > 0.01;
+    if (!root.current.visible) return;
+    run.current += delta * (0.25 + 1.6 * t);
+    const cam = state.camera.position;
+    const pos = geometry.attributes.position as THREE.BufferAttribute;
+    const DEPTH = 14;
+    for (let i = 0; i < STREAKS; i++) {
+      const s = seeds[i];
+      // Each streak travels from far behind the stage to just past the camera, then starts over.
+      const k = (s.z + run.current * s.v) % 1;
+      const z = cam.z - DEPTH + k * DEPTH;
+      const len = (0.08 + 2.2 * t) * (0.4 + k);
+      const x = cam.x + Math.cos(s.a) * s.d * (0.6 + 0.6 * k);
+      const y = cam.y + Math.sin(s.a) * s.d * (0.6 + 0.6 * k);
+      pos.setXYZ(i * 2, x, y, z);
+      pos.setXYZ(i * 2 + 1, x, y, z - len);
+    }
+    pos.needsUpdate = true;
+    mat.current.opacity = Math.min(1, t * 1.3) * (dark ? 0.5 : 0.4);
+
+    // Loose leaves spiral round the reader's path and tumble past, once they are inside.
+    for (let i = 0; i < DRIFT; i++) {
+      const k = (((i * 0.53) % 1) + run.current * (0.45 + 0.35 * ((i * 0.31) % 1))) % 1;
+      const turn = i * 2.39996 + run.current * 1.4;
+      const d = 0.55 + 1.7 * ((i * 0.618034) % 1);
+      dummy.position.set(cam.x + Math.cos(turn) * d, cam.y + Math.sin(turn) * d, cam.z - 9 + k * 9.4);
+      dummy.rotation.set(run.current * 2.1 + i, run.current * 1.3 + i * 0.7, turn);
+      dummy.scale.setScalar(Math.min(1, t * 1.6) * smooth(through, 0.3, 0.6) * (0.6 + 0.6 * ((i * 0.77) % 1)));
+      dummy.updateMatrix();
+      leaves.current.setMatrixAt(i, dummy.matrix);
+    }
+    leaves.current.instanceMatrix.needsUpdate = true;
+
+    // The burst, just in front of the reader, peaking as they cross the lantern's heart.
+    burst.current.position.set(cam.x, cam.y, cam.z - 1);
+    burstMat.current.opacity = Math.exp(-(((through - 0.62) / 0.11) ** 2)) * (dark ? 0.5 : 0.75);
+  });
+  return (
+    <group ref={root} visible={false}>
+      <mesh ref={burst} renderOrder={4}>
+        <planeGeometry args={[3.2, 3.2]} />
+        <meshBasicMaterial
+          ref={burstMat}
+          map={burstMap}
+          transparent
+          opacity={0}
+          depthTest={false}
+          depthWrite={false}
+          blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
+          toneMapped={false}
+        />
+      </mesh>
+      <instancedMesh ref={leaves} args={[leaf, undefined, DRIFT]} frustumCulled={false}>
+        <meshBasicMaterial map={leafMap} transparent opacity={0.9} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
+      <lineSegments ref={lines} geometry={geometry} frustumCulled={false} renderOrder={3}>
+        <lineBasicMaterial
+          ref={mat}
+          color={dark ? "#9ff5ea" : "#0b8a7c"}
+          transparent
+          opacity={0}
+          blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </lineSegments>
+    </group>
   );
 }
 
@@ -547,8 +704,8 @@ function World({ phase, children }: { phase: React.RefObject<Phase>; children: R
 
 const CARD_W = 1.5;
 const CARD_H = CARD_W / 0.7485;
-// Where a chapter page sets off from: the lantern, drawn back below the stage.
-const LANTERN_SPOT = new THREE.Vector3(0, -1.2, -2.2);
+// Where a stop's page comes from: far ahead, the way the reader is travelling.
+const ARRIVE_FROM = new THREE.Vector3(0, 0.35, -9);
 // Ends of the thread, in spiral steps before the first stop and after the last.
 const THREAD_FROM = -0.6;
 const THREAD_TO = CHAPTERS + 0.6;
@@ -704,15 +861,15 @@ function Constellation({
       if (!card.visible) continue;
       const e = 1 - (1 - d) ** 3;
       target.set(...spiralPoint(i, f));
-      // Out of the lantern along an arc, then on the spiral; the page in front leans out a little.
+      // Out of the depth along a shallow arc, then on the spiral; the page in front leans out a little.
       const away = Math.abs(f - i);
       const front = 1 - Math.min(1, away);
-      card.position.lerpVectors(LANTERN_SPOT, target, e);
-      card.position.y += Math.sin(d * Math.PI) * 0.45;
+      card.position.lerpVectors(ARRIVE_FROM, target, e);
+      card.position.y += Math.sin(d * Math.PI) * 0.2;
       card.position.z += 0.12 * front * e;
       card.scale.setScalar(fit * (0.35 + 0.65 * e) * (1 - Math.min(0.3, away * 0.12)));
       const drift = Math.sin(state.clock.elapsedTime * 0.5 + i);
-      card.rotation.set(drift * 0.015, THREE.MathUtils.lerp(1.1, spiralFacing(i, f), e) + drift * 0.02, 0);
+      card.rotation.set(drift * 0.015, THREE.MathUtils.lerp(0.6, spiralFacing(i, f), e) + drift * 0.02, 0);
       // Brightest at the front; the others dim and darken, passed ones fastest.
       const passed = smooth(f - i, 0.5, 1.6);
       const mat = card.material as THREE.MeshBasicMaterial;

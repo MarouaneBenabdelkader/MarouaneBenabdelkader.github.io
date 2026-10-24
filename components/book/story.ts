@@ -16,7 +16,7 @@ export const CHAPTERS = 6;
 export const BOOK_UNTIL = 0.03;
 const LANTERN_FROM = 0.06;
 const LANTERN_TO = 0.3;
-const CHAPTERS_FROM = 0.34;
+export const CHAPTERS_FROM = 0.34;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 export const smooth = (x: number, a: number, b: number) => {
@@ -31,6 +31,13 @@ export type Phase = {
   chapters: number;
   /** Which point of the thread is in view: 0..CHAPTERS-1 are the chapters, CHAPTERS the end. */
   focus: number;
+  /**
+   * The passage from the book into the experience: rises from 0 as the open lantern starts to
+   * draw back, peaks on the way, and is back to 0 by the time the first stop is in place.
+   */
+  travel: number;
+  /** How far through the passage the reader is: 0 before it, 1 once out the other side. */
+  through: number;
 };
 
 /**
@@ -44,12 +51,20 @@ function dwell(f: number) {
   return i + 0.35 * r + 0.65 * r * r * (3 - 2 * r);
 }
 
+// The passage runs from the end of the lantern's opening to just before the first stop sets
+// off: the lantern tips its axis toward the reader and they fly through it, down a tunnel of its
+// pages, coming out into open space a moment before the first page arrives.
+export const TRAVEL_FROM = 0.24;
+export const TRAVEL_TO = 0.335;
+
 export function phaseAt(s: number): Phase {
   const chapters = clamp01((s - CHAPTERS_FROM) / (1 - CHAPTERS_FROM));
   return {
     lantern: smooth(s, LANTERN_FROM, LANTERN_TO),
     chapters,
     focus: dwell(Math.min(CHAPTERS, Math.max(0, chapters * (CHAPTERS + 0.4) - 0.3))),
+    travel: Math.sin(Math.PI * clamp01((s - TRAVEL_FROM) / (TRAVEL_TO - TRAVEL_FROM))),
+    through: clamp01((s - TRAVEL_FROM) / (TRAVEL_TO - TRAVEL_FROM)),
   };
 }
 
@@ -67,6 +82,16 @@ export function activeChapter(p: Phase) {
 const CIRCLE = 2 * Math.PI * 0.985;
 
 /**
+ * How far a sheet has fanned out as the lantern opens, for a sheet that goes `share` of the way
+ * round (1 for the front cover). The front cover leads and the pages behind follow in a cascade,
+ * the way a fan of cards opens, and every sheet arrives together.
+ */
+export function fanAt(lantern: number, share: number) {
+  const start = 0.3 * (1 - share);
+  return smooth(lantern, start, start + 0.7);
+}
+
+/**
  * A sheet's rotation in the open lantern (same convention as a page: +90 degrees lying right).
  * Sheet n of `sheets` takes its share of the circle by position: the front cover goes furthest,
  * the back cover stays where it is.
@@ -81,7 +106,8 @@ export function lanternAngle(n: number, sheets: number) {
  */
 export const LEAVES = 49;
 export function leafAngle(j: number, lantern: number) {
-  return Math.PI / 2 - CIRCLE * lantern * ((j + 1) / (LEAVES + 1));
+  const share = (j + 1) / (LEAVES + 1);
+  return Math.PI / 2 - CIRCLE * share * fanAt(lantern, share);
 }
 
 /** How far chapter i has travelled from the lantern to its place on the spiral (0..1). */
@@ -127,3 +153,21 @@ export const FIRST_CHAPTER_AT = (() => {
   }
   return 1;
 })();
+
+/**
+ * Where the spiral rests on each stop: STOP_AT[k] is the first scroll position with stop k in
+ * front and its page in place, and STOP_AT[CHAPTERS] is the end of the thread. Scrolling between
+ * stops glides from one of these to the next.
+ */
+export const STOP_AT: number[] = [
+  FIRST_CHAPTER_AT,
+  ...Array.from({ length: CHAPTERS }, (_, j) => {
+    const k = j + 1;
+    for (let n = 0; n <= 10000; n++) {
+      const s = n / 10000;
+      const p = phaseAt(s);
+      if (p.focus >= k - 0.001 && (k === CHAPTERS || activeChapter(p) === k)) return s;
+    }
+    return 1;
+  }),
+];
