@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import "../globals.css";
 import { body, display } from "@/lib/fonts";
 import { themeScript } from "@/lib/theme-script";
+import { analyticsScript } from "@/lib/analytics";
 import { LANGS, isLang, tr } from "@/content/types";
 import { profile } from "@/content/profile";
 import { Header } from "@/components/Header";
@@ -52,6 +53,7 @@ export default async function LangLayout({
         <main id="main">{children}</main>
         <Footer lang={lang} />
         <RevealOnScroll />
+        {analyticsScript && <script dangerouslySetInnerHTML={{ __html: analyticsScript }} />}
       </body>
     </html>
   );
