@@ -1,12 +1,29 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Lang } from "@/content/types";
 import type { NavItem } from "./NavLinks";
 
-/** Phone-width menu: a native disclosure that closes once a link is chosen. */
+/** Phone-width menu: a native disclosure that closes once a link is chosen, on a tap outside it, or on Escape. */
 export function MobileMenu({ lang, label, items }: { lang: Lang; label: string; items: NavItem[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = () => ref.current?.removeAttribute("open");
+    const onPointer = (e: PointerEvent) => {
+      if (ref.current?.open && !ref.current.contains(e.target as Node)) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || !ref.current?.open) return;
+      close();
+      ref.current.querySelector("summary")?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
   return (
     <details ref={ref} className="group relative md:hidden">
       <summary
@@ -20,7 +37,7 @@ export function MobileMenu({ lang, label, items }: { lang: Lang; label: string; 
           <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
         </svg>
       </summary>
-      <nav aria-label="Mobile" className="absolute right-0 top-12 w-48 rounded-2xl border border-line bg-raised p-2 shadow-lg shadow-black/10">
+      <nav aria-label={label} className="absolute right-0 top-12 w-48 rounded-2xl border border-line bg-raised p-2 shadow-lg shadow-black/10">
         {items.map((n) => (
           <a
             key={n.id}

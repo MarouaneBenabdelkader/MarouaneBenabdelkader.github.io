@@ -207,8 +207,33 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
     };
     // Between stops one scroll gesture glides to the next one: slow enough to watch the spiral
     // turn and the next page come forward, and the wheel is held meanwhile so it cannot fight it.
-    const STEP_MS = 1900;
-    const HOLD_MS = 450;
+    const STEP_MS = 1100;
+    // One wheel gesture moves one stop. The gesture that set off a glide is held, through the glide
+    // and after it, for as long as its events keep coming (trackpad momentum included); a pause
+    // of QUIET_MS ends it, and the next wheel event is a new gesture. Gaps are measured between
+    // the events' own timestamps, so a busy main thread cannot make a gesture look finished.
+    // Scrolling the other way is always a new gesture: it turns the glide round at once.
+    const HOLD_MS = 250;
+    const QUIET_MS = 160;
+    let lastWheel = -Infinity;
+    let held = false;
+    let heldDir = 0;
+    // A touchpad coasts on after the fingers lift, its events fading away; a new swipe makes them
+    // grow again. `peak` is the strongest event of the gesture being held and `recent` the last
+    // few, so a swipe that starts while the last one is still coasting is not mistaken for it.
+    let peak = 0;
+    let recent: number[] = [];
+    // A swipe made while a glide is still running: its move, made as soon as the glide lands.
+    let queued = 0;
+    // The stop the page last came to rest on, so a scroll it could not take over settles on
+    // the way the reader was heading rather than back where they started.
+    let restAt = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    // Whether a finger is on the screen (or has just let go, with the page still flinging): touch
+    // scrolling is turned into glides as it happens; every other kind of scroll is settled after.
+    let touching = false;
+    let touchEnded = -Infinity;
+    const SETTLE_MS = 180;
     let glide: number | null = null;
     let heldUntil = 0;
     let lastS = 0;
@@ -220,6 +245,10 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
     // Glides the page along `path` (story position by milliseconds elapsed) for `ms`.
     const glideTo = (s: number, ms = GLIDE_MS, path?: (elapsed: number) => number) => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // The jump's own scroll event must not count as the reader scrolling on; and with no glide
+        // to hold the gesture through, the rest of a wheel turn is held a little longer instead.
+        heldUntil = performance.now() + 600;
+        restAt = s;
         window.scrollTo({ top: scrollFor(s), behavior: "instant" });
         return;
       }
@@ -236,10 +265,43 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         window.scrollTo({ top: scrollFor(t < 1 ? along(now - start) : s), behavior: "instant" });
         glide = t < 1 ? requestAnimationFrame(step) : null;
         // Trackpads keep sending a gesture's momentum after it ends; let it die out first.
-        if (glide === null) heldUntil = performance.now() + HOLD_MS;
+        if (glide === null) {
+          heldUntil = performance.now() + HOLD_MS;
+          restAt = s;
+          if (queued) {
+            const dir = queued;
+            queued = 0;
+            carry(dir, s);
+          }
+        }
       };
       if (glide !== null) cancelAnimationFrame(glide);
       glide = requestAnimationFrame(step);
+    };
+    // Carries the reader one move in direction dir (1 down, -1 up) from story position s: through
+    // the opening between the book and the first stop, or to the neighbouring stop on the thread.
+    // Returns false where the page should simply scroll (above the book, below the thread's end).
+    const carry = (dir: number, s: number) => {
+      const end = STOP_AT[STOP_AT.length - 1];
+      const step = (to: number) => glideTo(to, STEP_MS, (ms) => s + (to - s) * (1 - (1 - Math.min(1, ms / STEP_MS)) ** 3));
+      if (dir > 0) {
+        if (s >= end - 0.002) return false;
+        // From the book, the whole opening; from partway through it (turned back, then forward
+        // again), straight on to the first stop.
+        if (s < FIRST_CHAPTER_AT - 0.002) glideTo(FIRST_CHAPTER_AT, s <= BOOK_UNTIL ? OPENING_MS : 1600, s <= BOOK_UNTIL ? opening(s) : undefined);
+        else step(STOP_AT.find((at) => at > s + 0.002) ?? end);
+      } else {
+        if (s <= 0.001) return false;
+        if (s <= FIRST_CHAPTER_AT + 0.002) glideTo(0);
+        // Coming back up from below the thread, the first stop met is its end.
+        else if (s > end + 0.002) step(end);
+        else step([...STOP_AT].reverse().find((at) => at < s - 0.002) ?? FIRST_CHAPTER_AT);
+      }
+      held = true;
+      heldDir = dir;
+      peak = 0;
+      recent = [];
+      return true;
     };
     const onScroll = () => {
       if (!section) return;
@@ -247,17 +309,16 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
       const travel = Math.max(1, rect.height - window.innerHeight);
       const s = Math.min(1, Math.max(0, -rect.top / travel));
       story.current = s;
-      if (glide === null) {
-        // Any scroll away from the book starts it; a single wheel step moves s by about 0.015.
-        const between = s > 0.001 && s < FIRST_CHAPTER_AT - 0.002;
-        if (between && s > lastS && lastS <= BOOK_UNTIL) glideTo(FIRST_CHAPTER_AT, OPENING_MS, opening(s));
-        else if (between && s < lastS && lastS >= FIRST_CHAPTER_AT - 0.002) glideTo(0);
-        else if (s >= FIRST_CHAPTER_AT - 0.002 && performance.now() >= heldUntil) {
-          // On the thread: carry on to the next stop the way the reader is scrolling. Past the
-          // last one the page scrolls on normally, out of the book's section.
-          const end = STOP_AT[STOP_AT.length - 1];
-          if (s > lastS && s < end - 0.002) glideTo(STOP_AT.find((at) => at > s + 0.002) ?? end, STEP_MS);
-          else if (s < lastS && s > FIRST_CHAPTER_AT + 0.002 && s <= end + 0.002) glideTo([...STOP_AT].reverse().find((at) => at < s - 0.002) ?? FIRST_CHAPTER_AT, STEP_MS);
+      // A scroll the page did not make itself. A touch swipe carries the reader on the way they
+      // swiped. Anything else (the scrollbar dragged, or a wheel gesture the browser would not let
+      // the page take over) is left to finish, then settled on the nearest stop, so the page never
+      // fights it and never rests between two stops.
+      if (glide === null && s !== lastS) {
+        const now = performance.now();
+        if ((touching || now - touchEnded < 600) && now >= heldUntil) carry(s > lastS ? 1 : -1, s);
+        else {
+          clearTimeout(settleTimer);
+          settleTimer = setTimeout(settle, Math.max(SETTLE_MS, heldUntil - now + 30));
         }
       }
       // The title card comes up as the reader enters the passage going in, and makes way just
@@ -292,19 +353,109 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         setStage(next);
       }
     };
-    // While a glide runs (and as a gesture's momentum dies out after it), the wheel would only
-    // fight it: hold it.
+    // Back to rest on a stop (or at either end of the opening) if something left the page between.
+    const settle = () => {
+      if (glide !== null || !section) return;
+      const s = story.current;
+      const end = STOP_AT[STOP_AT.length - 1];
+      if (s > 0.001 && s < FIRST_CHAPTER_AT - 0.002) return glideTo(heldDir < 0 ? 0 : FIRST_CHAPTER_AT);
+      if (s < FIRST_CHAPTER_AT - 0.002 || s > end + 0.002) return;
+      const near = STOP_AT.reduce((a, b) => (Math.abs(b - s) < Math.abs(a - s) ? b : a));
+      // Moved a little way off the stop it rested on: on to the neighbouring stop that way.
+      // Moved further (the scrollbar dragged a long way): the nearest stop.
+      const gap = STOP_AT[2] - STOP_AT[1];
+      const moved = s - restAt;
+      const target =
+        Math.abs(moved) > 0.012 && Math.abs(moved) < gap
+          ? (moved > 0 ? STOP_AT.find((at) => at > restAt + 0.002) : [...STOP_AT].reverse().find((at) => at < restAt - 0.002)) ?? near
+          : near;
+      if (Math.abs(target - s) > 0.003) glideTo(target, STEP_MS);
+      else restAt = s;
+    };
+    // Inside the book's section the wheel never scrolls the page itself: the browser's own
+    // smooth scrolling would keep moving it under a glide, leaving it between stops or carrying
+    // it one stop too far. A new gesture is turned into a glide here; the rest of a gesture
+    // (its momentum) is swallowed; scrolling the other way turns the glide round at once.
+    // Whether the stage is pinned, so scrolling belongs to the story (allowing for the header above
+    // it at the very top); outside it, and past either end of the story, the page scrolls as usual.
+    const pinned = () => {
+      const rect = section!.getBoundingClientRect();
+      const raw = -rect.top / Math.max(1, rect.height - window.innerHeight);
+      return raw >= -0.05 && raw <= 1.001;
+    };
     const onWheel = (e: WheelEvent) => {
-      if (glide !== null || performance.now() < heldUntil) e.preventDefault();
+      const dir = Math.sign(e.deltaY);
+      const continues = e.timeStamp - lastWheel < QUIET_MS;
+      lastWheel = e.timeStamp;
+      // A gesture that began outside the story cannot be taken over midway (the browser no longer
+      // lets the page cancel its events): let it scroll, and onScroll settles it once it ends.
+      if (!dir || !section || !e.cancelable) return;
+      // How strong this event is, in pixels whatever the device reports in.
+      const size = Math.abs(e.deltaY) * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1);
+      if (glide !== null || (held && (continues || e.timeStamp < heldUntil))) {
+        e.preventDefault();
+        if (dir !== heldDir) {
+          queued = 0;
+          carry(dir, story.current);
+          return;
+        }
+        // The held gesture's events had faded to under half their peak, and now grow again:
+        // the reader has swiped anew. Move now, or once the running glide lands.
+        const fading = recent.length >= 3 ? recent.reduce((a, b) => a + b, 0) / recent.length : Infinity;
+        const swipedAgain = fading < peak * 0.5 && size > fading * 1.8 && size > 4;
+        peak = Math.max(peak, size);
+        recent = [...recent.slice(-3), size];
+        if (swipedAgain) {
+          peak = size;
+          recent = [size];
+          if (glide !== null) queued = dir;
+          else carry(dir, story.current);
+        }
+        return;
+      }
+      held = false;
+      if (pinned() && carry(dir, story.current)) e.preventDefault();
+    };
+    // The keys that scroll a page move one stop instead, like a wheel gesture; held down, a key
+    // repeats only once its glide is over. The browser's own (smooth) key scrolling would fight it.
+    const onKey = (e: KeyboardEvent) => {
+      if (!section || e.altKey || e.ctrlKey || e.metaKey) return;
+      // Typing keeps its keys, and Space still presses a focused button or link.
+      const t = e.target instanceof HTMLElement ? e.target : null;
+      if (t?.closest("input, textarea, select, [contenteditable]") || (e.key === " " && t?.closest("button, a"))) return;
+      const dir = e.key === "ArrowDown" || e.key === "PageDown" || (e.key === " " && !e.shiftKey) ? 1 : e.key === "ArrowUp" || e.key === "PageUp" || (e.key === " " && e.shiftKey) ? -1 : 0;
+      if (!dir || !pinned()) return;
+      if (glide !== null || performance.now() < heldUntil) {
+        e.preventDefault();
+        if (dir !== heldDir) carry(dir, story.current);
+        return;
+      }
+      if (carry(dir, story.current)) e.preventDefault();
+    };
+    const onTouchStart = () => {
+      touching = true;
+    };
+    const onTouchEnd = () => {
+      touching = false;
+      touchEnded = performance.now();
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", onTouchEnd, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
       if (glide !== null) cancelAnimationFrame(glide);
+      clearTimeout(settleTimer);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       window.removeEventListener("resize", onScroll);
     };
   }, []);
@@ -340,7 +491,9 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
   }, [years]);
 
   const project = page >= 2 && page <= 7 ? content.projects[page - 2] : null;
-  const caption = project ? project.title : page === 0 ? ui.coverCaption : page === 1 ? ui.aboutCaption : ui.contactCaption;
+  // What each page holds: shown under the book, and the name of its dot in the page controls.
+  const captionOf = (i: number) => (i >= 2 && i <= 7 ? content.projects[i - 2].title : i === 0 ? ui.coverCaption : i === 1 ? ui.aboutCaption : ui.contactCaption);
+  const caption = captionOf(page);
 
   return (
     <div
@@ -492,7 +645,7 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
                 <button
                   type="button"
                   onClick={() => go(i)}
-                  aria-label={String(i)}
+                  aria-label={captionOf(i)}
                   aria-current={i === page ? "page" : undefined}
                   className={`block h-1.5 rounded-full transition-all duration-500 ${i === page ? "w-5 bg-accent" : "w-1.5 bg-line hover:bg-muted"}`}
                 />

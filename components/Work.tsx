@@ -13,16 +13,17 @@ function MiniFlow({ slug, lang }: { slug: string; lang: Lang }) {
   return (
     <ol aria-hidden className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
       {steps.map((step, i) => (
+        // The arrow follows its step, so a line that wraps ends pointing on to the next one.
         <li key={i} className="flex items-center gap-1.5" style={{ "--i": i } as React.CSSProperties}>
-          {i > 0 && (
-            <svg viewBox="0 0 8 12" className="h-2.5 w-2 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M2 2l4 4-4 4" />
-            </svg>
-          )}
           <span className="flow-chip flex items-center gap-1.5 rounded-md bg-accent-wash px-2 py-0.5 font-medium text-accent-ink">
             <span className="size-1.5 rounded-full" style={{ background: `var(--kind-${step[0].kind})` }} />
             {tr(step[0].label, lang)}
           </span>
+          {i < steps.length - 1 && (
+            <svg viewBox="0 0 8 12" className="h-2.5 w-2 text-accent" fill="none" stroke="currentColor" strokeWidth="1.6">
+              <path d="M2 2l4 4-4 4" />
+            </svg>
+          )}
         </li>
       ))}
     </ol>
