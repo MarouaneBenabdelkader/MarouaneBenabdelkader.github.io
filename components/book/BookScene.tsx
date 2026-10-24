@@ -18,7 +18,9 @@ import { BEND_SHAPE, OPEN_SHAPE, PAGE_HEIGHT, PAGE_WIDTH, PAGE_SEGMENTS, TURN_BE
  * only the pages, lights and motes change.
  */
 
-const PAGE_DEPTH = 0.003;
+const PAGE_DEPTH = 0.0045;
+// Covers are boards: thicker than paper, growing outward so their inner face stays on the stack.
+const BOARD_DEPTH = 0.016;
 const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
 // Page size, bow, twist and stacking shared with the checks live in stack.ts.
 // Pages are partly self-lit from their own texture: strongly on dark paper so the light text
@@ -47,6 +49,20 @@ const geometry = (() => {
   g.setAttribute("skinWeight", new THREE.Float32BufferAttribute(weights, 4));
   return g;
 })();
+
+/** A cover's geometry: the page's, thickened on its outer side (+z for the front, -z for the back). */
+function board(outward: 1 | -1) {
+  const g = geometry.clone();
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const z = pos.getZ(i);
+    if (Math.sign(z) === outward) pos.setZ(i, z + outward * BOARD_DEPTH);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+const frontBoard = board(1);
+const backBoard = board(-1);
 
 const paperEdgeDark = new THREE.MeshStandardMaterial({ color: "#1d2b28", roughness: 0.9, emissive: "#41c7b6", emissiveIntensity: 0.08 });
 const paperEdgeLight = new THREE.MeshStandardMaterial({ color: "#ebe4d6", roughness: 0.9, emissive: "#ebe4d6", emissiveIntensity: 0.2 });
@@ -99,7 +115,7 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
       if (i > 0) bones[i - 1].add(bone);
       bones.push(bone);
     }
-    const m = new THREE.SkinnedMesh(geometry, [] as THREE.Material[]);
+    const m = new THREE.SkinnedMesh(stiff ? (number === 0 ? frontBoard : backBoard) : geometry, [] as THREE.Material[]);
     m.castShadow = true;
     m.receiveShadow = true;
     m.frustumCulled = false;
@@ -109,6 +125,8 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
     m.add(bones[0]);
     m.bind(new THREE.Skeleton(bones));
     return m;
+    // A page never changes number or kind, so its mesh is made once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useLayoutEffect(() => {
@@ -150,7 +168,11 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
     // Total rotation: +90 degrees lying right, -90 lying left, plus a hair of fan between sheets.
     // In the lantern, every sheet swings round to its place in the circle instead.
     const L = phase.current.lantern;
-    const total = THREE.MathUtils.lerp(Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2), lanternAngle(number, sheets), L);
+    // Once, after the book has risen: the closed cover lifts a little, as if something inside
+    // stirred, and settles back.
+    const t = state.clock.elapsedTime;
+    const ajar = number === 0 && page === 0 && motion.turnMs > 1 ? 0.22 * Math.sin(Math.PI * smooth(t, 4.4, 6.4)) * (1 - L) : 0;
+    const total = THREE.MathUtils.lerp(Math.PI / 2 - Math.PI * eased + open * THREE.MathUtils.degToRad(number * 0.2), lanternAngle(number, sheets), L) - ajar;
     // Book-local x points at the camera: lift each sheet to its place in its stack, and raise it
     // off the stack while it travels. In the lantern the sheets all meet at the spine.
     group.current.position.x = sheetHeight(number, sheets, eased, arc) * (1 - L);
@@ -168,11 +190,13 @@ function Page({ number, faces, page, sheets, stiff, theme, opening, delay, inFli
     }
 
     const mats = mesh.material as THREE.MeshStandardMaterial[];
-    const pulse = motion.turnMs > 1 ? Math.sin(state.clock.elapsedTime * 1.3) * 0.35 : 0;
+    const pulse = motion.turnMs > 1 ? Math.sin(t * 1.3) * 0.35 : 0;
+    // The engraving kindles on arrival: dark while the book rises, then lit with a brief surge.
+    const kindle = motion.turnMs > 1 ? smooth(t, 2.4, 3.8) * (1 + 0.8 * Math.sin(Math.PI * smooth(t, 3.2, 4.8))) : 1;
     [faces.frontGlow, faces.backGlow].forEach((mask, i) => {
       // A travelling page catches a little more light at the top of its arc.
       // Lit from inside, the lantern's pages glow a little brighter.
-      const target = mask ? COVER_GLOW + pulse + (hovered ? 0.7 : 0) : glow + arc * 0.12 + L * 0.2 + (hovered ? 0.07 : 0);
+      const target = mask ? (COVER_GLOW + pulse) * kindle + (hovered ? 0.7 : 0) : glow + arc * 0.12 + L * 0.2 + (hovered ? 0.07 : 0);
       easing.damp(mats[4 + i], "emissiveIntensity", target, 0.25, delta);
     });
   });
@@ -398,6 +422,7 @@ export default function BookScene({
   onPick,
   onOpen,
   journey,
+  years,
   clickable,
 }: {
   canvases: SheetFaces[];
@@ -413,12 +438,16 @@ export default function BookScene({
   onOpen: (stop: number) => void;
   /** The journey cards on the spiral, one canvas per stop. */
   journey: HTMLCanvasElement[];
+  /** The year each stop began, marked on the thread under its page. */
+  years: string[];
   /** Which stops respond to a click. */
   clickable: boolean[];
 }) {
   const still = motion.turnMs <= 1;
   const dark = theme === "dark";
   const phase = useRef<Phase>(phaseAt(0));
+  // Phones get fewer motes, to spare their GPUs.
+  const motes = useMemo(() => (window.matchMedia("(pointer: coarse)").matches ? 0.5 : 1), []);
   return (
     <Canvas
       shadows
@@ -434,7 +463,7 @@ export default function BookScene({
         {(faces) => (
           <World phase={phase}>
             <Book faces={faces} page={page} together={together} theme={theme} phase={phase} motion={motion} onPick={onPick} />
-            <Constellation journey={journey} clickable={clickable} phase={phase} theme={theme} onOpen={onOpen} />
+            <Constellation journey={journey} years={years} clickable={clickable} phase={phase} theme={theme} onOpen={onOpen} />
           </World>
         )}
       </Textures>
@@ -443,8 +472,8 @@ export default function BookScene({
       {/* Cool rim light from behind picks out the book's edges against the dark. */}
       <directionalLight position={[-2.5, 1.5, -3]} intensity={dark ? 1.6 : 0.8} color="#41c7b6" />
       {/* Motes: glowing on the night stage, darker flecks drifting in the light one. */}
-      <Sparkles count={70} scale={[6, 3.6, 2.4]} size={2.2} speed={still ? 0 : 0.25} opacity={dark ? 0.55 : 0.45} color={dark ? "#6fe6d6" : "#0b8a7c"} />
-      <Sparkles count={16} scale={[5, 3, 2]} size={3.2} speed={still ? 0 : 0.18} opacity={dark ? 0.7 : 0.55} color={dark ? "#f0b44c" : "#b26b00"} />
+      <Sparkles count={Math.round(70 * motes)} scale={[6, 3.6, 2.4]} size={2.2} speed={still ? 0 : 0.25} opacity={dark ? 0.55 : 0.45} color={dark ? "#6fe6d6" : "#0b8a7c"} />
+      <Sparkles count={Math.round(16 * motes)} scale={[5, 3, 2]} size={3.2} speed={still ? 0 : 0.18} opacity={dark ? 0.7 : 0.55} color={dark ? "#f0b44c" : "#b26b00"} />
       <ContactShadows position={[0, -0.95, 0]} opacity={dark ? 0.75 : 0.3} scale={5} blur={3} far={2.2} />
       <Fit page={page} sheets={canvases.length} phase={phase} />
     </Canvas>
@@ -510,7 +539,7 @@ function World({ phase, children }: { phase: React.RefObject<Phase>; children: R
   useFrame((_, delta) => {
     const k = smooth(phase.current.chapters, 0, 0.1);
     const portrait = size.width / size.height < 0.85;
-    const [ox, oy] = portrait ? [0, 0.45] : [-0.55, 0.05];
+    const [ox, oy] = portrait ? [0, 0.62] : [-0.55, -0.12];
     easing.damp3(ref.current.position, [k * ox, k * oy, 0], 0.35, delta);
   });
   return <group ref={ref}>{children}</group>;
@@ -520,20 +549,72 @@ const CARD_W = 1.5;
 const CARD_H = CARD_W / 0.7485;
 // Where a chapter page sets off from: the lantern, drawn back below the stage.
 const LANTERN_SPOT = new THREE.Vector3(0, -1.2, -2.2);
+// Ends of the thread, in spiral steps before the first stop and after the last.
+const THREAD_FROM = -0.6;
+const THREAD_TO = CHAPTERS + 0.6;
+
+/** A loose page: its side edges curl gently back, the way a sheet out of a binding never lies flat. */
+const cardGeometry = (() => {
+  const g = new THREE.PlaneGeometry(CARD_W, CARD_H, 24, 1);
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const u = pos.getX(i) / (CARD_W / 2);
+    pos.setZ(i, -0.07 * u * u);
+  }
+  g.computeVertexNormals();
+  return g;
+})();
+
+/** A soft shadow under a loose page, as a blurred dark sheet. */
+function shadowTexture() {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 320;
+  const ctx = c.getContext("2d")!;
+  ctx.filter = "blur(18px)";
+  ctx.fillStyle = "rgba(0,0,0,0.85)";
+  ctx.fillRect(40, 40, 176, 240);
+  return new THREE.CanvasTexture(c);
+}
+
+/** A year drawn as a small label for the thread. */
+function yearTexture(year: string, dark: boolean) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 96;
+  const ctx = c.getContext("2d")!;
+  const font = getComputedStyle(document.documentElement).getPropertyValue("--font-bricolage").trim() || "sans-serif";
+  ctx.font = `700 56px ${font}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  if (dark) {
+    ctx.shadowColor = "rgba(65,199,182,0.8)";
+    ctx.shadowBlur = 14;
+  }
+  ctx.fillStyle = dark ? "#dffcf7" : "#0b4f47";
+  ctx.fillText(year, 128, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 /**
- * The six chapters on their spiral. Each page leaves the lantern along an arc to its place on the
- * spiral, turning to face the reader as it goes; scrolling then turns the spiral so each chapter
- * swings to the front in turn. A thin thread runs through them, like the cord of a binding.
+ * The journey on its spiral. Each stop's page leaves the lantern along an arc to its place,
+ * turning to face the reader as it goes; scrolling then turns the spiral so each stop swings to
+ * the front in turn. The thread through them is the time axis: lit up to where the reader is,
+ * faint beyond, with each stop's year marked at its node. The page in front is bright and the
+ * others dim, so one stop holds the eye at a time.
  */
 function Constellation({
   journey,
+  years,
   clickable,
   phase,
   theme,
   onOpen,
 }: {
   journey: HTMLCanvasElement[];
+  years: string[];
   clickable: boolean[];
   phase: React.RefObject<Phase>;
   theme: BookTheme;
@@ -541,11 +622,17 @@ function Constellation({
 }) {
   const dark = theme === "dark";
   const cards = useRef<(THREE.Mesh | null)[]>([]);
+  const shadows = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
+  const nodes = useRef<(THREE.Mesh | null)[]>([]);
+  const labels = useRef<(THREE.SpriteMaterial | null)[]>([]);
   const spiral = useRef<THREE.Group>(null!);
   const threadMat = useRef<THREE.MeshBasicMaterial>(null!);
-  const nodeMat = useRef<THREE.MeshBasicMaterial>(null!);
+  const litMat = useRef<THREE.MeshBasicMaterial>(null!);
   const target = useMemo(() => new THREE.Vector3(), []);
   const gl = useThree((s) => s.gl);
+  // Phones show the panel under the page, so the pages are a little smaller there.
+  const size = useThree((s) => s.size);
+  const fit = size.width / size.height < 0.85 ? 0.8 : 1;
   const maps = useMemo(
     () =>
       journey.map((c) => {
@@ -557,30 +644,57 @@ function Constellation({
     [journey, gl],
   );
   useEffect(() => () => maps.forEach((t) => t.dispose()), [maps]);
+  const shadow = useMemo(shadowTexture, []);
+  useEffect(() => () => shadow.dispose(), [shadow]);
+  const yearMaps = useMemo(() => years.map((y) => yearTexture(y, dark)), [years, dark]);
+  useEffect(() => () => yearMaps.forEach((t) => t.dispose()), [yearMaps]);
 
-  // The thread and its nodes are built once around the spiral's axis at focus 0; turning and
-  // raising the group by the focus moves them exactly as spiralPoint moves the pages.
-  const { thread, count } = useMemo(() => {
+  // The thread is built once around the spiral's axis at focus 0; turning and raising the group
+  // by the focus moves it exactly as spiralPoint moves the pages. Two tubes share the curve: a
+  // faint one for the whole path and a brighter, thicker one for the part already travelled.
+  const { thread, lit, count, litCount } = useMemo(() => {
     const pts: THREE.Vector3[] = [];
-    for (let t = -0.6; t <= CHAPTERS + 0.6; t += 0.05) {
+    for (let t = THREAD_FROM; t <= THREAD_TO; t += 0.05) {
       const a = -t * SPIRAL_STEP;
-      pts.push(new THREE.Vector3(SPIRAL_RADIUS * Math.sin(a), -t * SPIRAL_RISE, SPIRAL_RADIUS * Math.cos(a)));
+      pts.push(new THREE.Vector3(SPIRAL_RADIUS * Math.sin(a), -t * SPIRAL_RISE - CARD_H * 0.55, SPIRAL_RADIUS * Math.cos(a)));
     }
-    const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 600, 0.006, 6);
-    return { thread: g, count: g.index?.count ?? 0 };
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const thread = new THREE.TubeGeometry(curve, 600, 0.007, 6);
+    const lit = new THREE.TubeGeometry(curve, 600, 0.014, 8);
+    return { thread, lit, count: thread.index?.count ?? 0, litCount: lit.index?.count ?? 0 };
   }, []);
-  useEffect(() => () => thread.dispose(), [thread]);
+  useEffect(
+    () => () => {
+      thread.dispose();
+      lit.dispose();
+    },
+    [thread, lit],
+  );
 
   useFrame((state, delta) => {
     const p = phase.current;
     const f = p.focus;
-    // Turn and raise the thread with the focus; its axis sits behind the front of the spiral.
     spiral.current.position.set(0, f * SPIRAL_RISE, SPIRAL_FRONT - SPIRAL_RADIUS);
     spiral.current.rotation.y = f * SPIRAL_STEP;
-    const reveal = p.chapters > 0 ? Math.min(1, (f + 1.8) / (CHAPTERS + 1.2)) : 0;
-    thread.setDrawRange(0, Math.floor(count * reveal));
-    easing.damp(threadMat.current, "opacity", p.chapters > 0.01 ? (dark ? 0.55 : 0.5) : 0, 0.3, delta);
-    nodeMat.current.opacity = threadMat.current.opacity * 1.6;
+    const along = (t: number) => Math.min(1, Math.max(0, (t - THREAD_FROM) / (THREAD_TO - THREAD_FROM)));
+    // The faint thread runs a little ahead of the reader; the lit one stops where they are.
+    thread.setDrawRange(0, p.chapters > 0 ? Math.floor(count * along(f + 1.8)) : 0);
+    lit.setDrawRange(0, p.chapters > 0 ? Math.floor(litCount * along(f)) : 0);
+    const shown = p.chapters > 0.01 ? 1 : 0;
+    easing.damp(threadMat.current, "opacity", shown * (dark ? 0.3 : 0.32), 0.3, delta);
+    easing.damp(litMat.current, "opacity", shown * (dark ? 0.95 : 0.85), 0.3, delta);
+
+    for (let i = 0; i <= CHAPTERS; i++) {
+      // Nodes and years: bright once reached, faint ahead, fading once well behind.
+      const reached = smooth(f - i, -0.6, -0.05);
+      const node = nodes.current[i];
+      if (node) {
+        (node.material as THREE.MeshBasicMaterial).opacity = Math.min(1, threadMat.current.opacity * (1.4 + 1.8 * reached));
+        node.scale.setScalar(1 + 0.6 * reached * (1 - Math.min(1, Math.abs(f - i))));
+      }
+      const label = labels.current[i];
+      if (label) label.opacity = shown * (0.25 + 0.75 * reached) * (1 - 0.6 * smooth(f - i, 1, 2.5)) * Math.min(1, threadMat.current.opacity * 4);
+    }
 
     for (let i = 0; i < CHAPTERS; i++) {
       const card = cards.current[i];
@@ -590,16 +704,22 @@ function Constellation({
       if (!card.visible) continue;
       const e = 1 - (1 - d) ** 3;
       target.set(...spiralPoint(i, f));
-      // Out of the lantern along an arc, then on the spiral.
+      // Out of the lantern along an arc, then on the spiral; the page in front leans out a little.
+      const away = Math.abs(f - i);
+      const front = 1 - Math.min(1, away);
       card.position.lerpVectors(LANTERN_SPOT, target, e);
       card.position.y += Math.sin(d * Math.PI) * 0.45;
-      const away = Math.abs(f - i);
-      card.scale.setScalar((0.35 + 0.65 * e) * (1 - Math.min(0.25, away * 0.1)));
-      card.rotation.set(0, THREE.MathUtils.lerp(1.1, spiralFacing(i, f), e) + Math.sin(state.clock.elapsedTime * 0.5 + i) * 0.02, 0);
-      // Brightest at the front; passed pages fade faster than upcoming ones.
+      card.position.z += 0.12 * front * e;
+      card.scale.setScalar(fit * (0.35 + 0.65 * e) * (1 - Math.min(0.3, away * 0.12)));
+      const drift = Math.sin(state.clock.elapsedTime * 0.5 + i);
+      card.rotation.set(drift * 0.015, THREE.MathUtils.lerp(1.1, spiralFacing(i, f), e) + drift * 0.02, 0);
+      // Brightest at the front; the others dim and darken, passed ones fastest.
       const passed = smooth(f - i, 0.5, 1.6);
       const mat = card.material as THREE.MeshBasicMaterial;
-      mat.opacity = Math.min(1, d * 3) * (1 - Math.min(0.6, away * 0.28)) * (1 - 0.85 * passed);
+      mat.opacity = Math.min(1, d * 3) * (1 - Math.min(0.5, away * 0.25)) * (1 - 0.85 * passed);
+      mat.color.setScalar(1 - Math.min(0.55, away * 0.5));
+      const sh = shadows.current[i];
+      if (sh) sh.opacity = mat.opacity * (dark ? 0.7 : 0.35);
     }
   });
 
@@ -607,22 +727,34 @@ function Constellation({
     <group>
       <group ref={spiral}>
         <mesh geometry={thread} frustumCulled={false}>
+          <meshBasicMaterial ref={threadMat} color={dark ? "#6fe6d6" : "#0b8a7c"} transparent opacity={0} depthWrite={false} />
+        </mesh>
+        <mesh geometry={lit} frustumCulled={false}>
           <meshBasicMaterial
-            ref={threadMat}
-            color={dark ? "#6fe6d6" : "#0b8a7c"}
+            ref={litMat}
+            color={dark ? "#8ff0e2" : "#076a5f"}
             transparent
             opacity={0}
             blending={dark ? THREE.AdditiveBlending : THREE.NormalBlending}
             depthWrite={false}
+            toneMapped={false}
           />
         </mesh>
         {Array.from({ length: CHAPTERS + 1 }, (_, i) => {
           const a = -i * SPIRAL_STEP;
+          const at: [number, number, number] = [SPIRAL_RADIUS * Math.sin(a), -i * SPIRAL_RISE - CARD_H * 0.55, SPIRAL_RADIUS * Math.cos(a)];
           return (
-            <mesh key={`node-${i}`} position={[SPIRAL_RADIUS * Math.sin(a), -i * SPIRAL_RISE - CARD_H * 0.55, SPIRAL_RADIUS * Math.cos(a)]}>
-              <sphereGeometry args={[i === CHAPTERS ? 0.05 : 0.03, 16, 16]} />
-              <meshBasicMaterial ref={i === 0 ? nodeMat : undefined} color={dark ? "#f0b44c" : "#b26b00"} transparent opacity={0} toneMapped={false} />
-            </mesh>
+            <group key={`node-${i}`} position={at}>
+              <mesh ref={(m) => void (nodes.current[i] = m)}>
+                <sphereGeometry args={[i === CHAPTERS ? 0.05 : 0.035, 16, 16]} />
+                <meshBasicMaterial color={dark ? "#f0b44c" : "#b26b00"} transparent opacity={0} toneMapped={false} depthWrite={false} />
+              </mesh>
+              {yearMaps[i] && (
+                <sprite position={[0, -0.14, 0]} scale={[0.42, 0.1575, 1]}>
+                  <spriteMaterial ref={(m) => void (labels.current[i] = m)} map={yearMaps[i]} transparent opacity={0} depthWrite={false} toneMapped={false} />
+                </sprite>
+              )}
+            </group>
           );
         })}
       </group>
@@ -632,6 +764,7 @@ function Constellation({
           ref={(m) => void (cards.current[i] = m)}
           visible={false}
           renderOrder={2}
+          geometry={cardGeometry}
           onClick={(e) => {
             // Only a page that is out on the spiral opens its chapter; otherwise the tap is not
             // for it (it may be meant for the book behind), so let it through.
@@ -644,9 +777,13 @@ function Constellation({
           }}
           onPointerLeave={() => (document.body.style.cursor = "")}
         >
-          <planeGeometry args={[CARD_W, CARD_H]} />
-          {/* The stop's card, drawn over the thread so the thread passes behind it. */}
+          {/* The stop's page, drawn over the thread so the thread passes behind it. */}
           <meshBasicMaterial map={maps[i] ?? null} transparent side={THREE.DoubleSide} toneMapped={false} depthTest={false} />
+          {/* Its shadow, cast down and back as if lit from above the reader. */}
+          <mesh position={[0.06, -0.09, -0.12]} scale={1.08} renderOrder={1} raycast={() => null}>
+            <planeGeometry args={[CARD_W, CARD_H]} />
+            <meshBasicMaterial ref={(m) => void (shadows.current[i] = m)} map={shadow} transparent opacity={0} depthTest={false} depthWrite={false} />
+          </mesh>
         </mesh>
       ))}
     </group>

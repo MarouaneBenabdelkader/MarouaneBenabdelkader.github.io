@@ -1,5 +1,5 @@
 // Height of each sheet in its stack, so pages layer cleanly instead of z-fighting.
-export const STACK_GAP = 0.0035;
+export const STACK_GAP = 0.006;
 // How high a page rises off the stack at the middle of a turn.
 export const TURN_LIFT = 0.18;
 // A page is a strip of segments, one bone each; mid-turn the paper bows by up to TURN_BEND per

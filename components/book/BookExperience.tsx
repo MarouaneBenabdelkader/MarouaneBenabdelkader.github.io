@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildFaces, journeyCard, type BookContent, type BookTheme } from "./pages";
-import { activeChapter, BOOK_UNTIL, FIRST_CHAPTER_AT, phaseAt } from "./story";
+import { activeChapter, BOOK_UNTIL, departure, FIRST_CHAPTER_AT, phaseAt } from "./story";
 import type { Motion } from "./BookScene";
 
 const BookScene = dynamic(() => import("./BookScene"), { ssr: false });
@@ -142,7 +142,7 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         );
         setCanvases(faces);
         const art = window.matchMedia("(pointer: coarse)").matches ? 1 : 1.5;
-        setJourneyCanvases(stops.map((s, i) => journeyCard({ ...s, logo: stopLogos[i] }, i, fonts, theme, art)));
+        setJourneyCanvases(stops.map((s, i) => journeyCard({ ...s, logo: stopLogos[i] }, i, stops.length, fonts, theme, art)));
         setState("ready");
       } catch {
         if (!cancelled) setState("fallback");
@@ -228,9 +228,13 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
         setPage(back);
       }
       const phase = phaseAt(s);
-      // Between two chapters the panel keeps the one leaving until the next has arrived, and the
-      // lantern hint only shows before any chapter has left.
-      const chapter = activeChapter(phase) ?? (phase.chapters > 0.02 && phase.focus < 5.5 ? Math.min(5, Math.floor(phase.focus)) : null);
+      // Between two stops the panel follows the page nearest the front once it is most of the way
+      // there, so the text always matches the page the reader is looking at; the lantern hint
+      // only shows before any page has left.
+      const near = Math.min(5, Math.round(phase.focus));
+      const chapter =
+        activeChapter(phase) ??
+        (phase.chapters > 0.02 && phase.focus < 5.5 ? (departure(near, phase) > 0.5 ? near : Math.min(5, Math.floor(phase.focus))) : null);
       const next: Stage =
         s <= BOOK_UNTIL ? { kind: "book" } : chapter !== null ? { kind: "chapter", index: chapter } : phase.focus > 5.5 ? { kind: "end" } : { kind: "lantern" };
       if (!sameStage(next, stageRef.current)) {
@@ -271,13 +275,15 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [go, page]);
 
+  const years = useMemo(() => stops.map((s) => s.dates.match(/\d{4}/)?.[0] ?? ""), [stops]);
+
   const project = page >= 2 && page <= 7 ? content.projects[page - 2] : null;
   const caption = project ? project.title : page === 0 ? ui.coverCaption : page === 1 ? ui.aboutCaption : ui.contactCaption;
 
   return (
     <div
       ref={rootRef}
-      className="flex size-full touch-pan-y select-none flex-col"
+      className="relative flex size-full touch-pan-y select-none flex-col"
       onPointerDown={(e) => (swipe.current = { x: e.clientX, y: e.clientY, t: performance.now() })}
       onPointerUp={(e) => {
         const s = swipe.current;
@@ -309,6 +315,7 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
               onPick={pick}
               onOpen={openStop}
               journey={journeyCanvases}
+              years={years}
               clickable={stops.map((s) => s.kind === "freelance")}
             />
           </div>
@@ -334,9 +341,6 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
             {stage.kind === "lantern" ? ui.lanternHint : page === 0 ? ui.hintOpen : ui.hintTurn}
           </p>
         )}
-
-        {/* The chapter in view on the thread: beside its page on wide screens, below it on phones. */}
-        {state === "ready" && <StoryPanel stage={stage} stops={stops} ui={ui} onChapters={backToChapters} />}
       </div>
 
       <div
@@ -379,6 +383,10 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
           <PageButton label={ui.next} disabled={page === SHEETS} onClick={() => go(page + 1)} />
         </div>
       </div>
+
+      {/* The stop in view on the thread: beside its page on wide screens, below it on phones,
+          where it may use the room the page controls leave once they have faded out. */}
+      {state === "ready" && <StoryPanel stage={stage} stops={stops} ui={ui} onChapters={backToChapters} />}
     </div>
   );
 }

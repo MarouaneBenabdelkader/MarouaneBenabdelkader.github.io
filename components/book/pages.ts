@@ -521,57 +521,101 @@ function tintedLogo(img: HTMLImageElement, color: string, h: number) {
  * A journey card, built like a book page: the engraved frame, the dates as a lit label, the
  * company in large type (with its logo when there is one), the role and two lines on the work.
  */
-export function journeyCard(stop: JourneyStop, index: number, fonts: Fonts, theme: BookTheme, s: number) {
+/** Fine paper grain, fixed for every page so redraws match. */
+function grain(ctx: CanvasRenderingContext2D, seed: number) {
+  let r = seed * 9301 + 49297;
+  const rand = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
+  ctx.fillStyle = C.glow ? "rgba(255,255,255,0.035)" : "rgba(60,45,20,0.05)";
+  for (let k = 0; k < 2600; k++) ctx.fillRect(rand() * PAGE_PX.w, rand() * PAGE_PX.h, 1.6, 1.6);
+}
+
+/**
+ * A stop of the journey as a page torn from the book: the year it began, set large, and the
+ * company's mark. What happened there is told in the panel beside it, so the page stays a picture
+ * the reader recognises at a glance.
+ */
+export function journeyCard(stop: JourneyStop, index: number, count: number, fonts: Fonts, theme: BookTheme, s: number) {
   C = PALETTES[theme];
   const [c, ctx] = canvas(s);
   ctx.fillStyle = C.paper;
   ctx.fillRect(0, 0, PAGE_PX.w, PAGE_PX.h);
-  const v = ctx.createRadialGradient(PAGE_PX.w / 2, PAGE_PX.h * 0.38, 80, PAGE_PX.w / 2, PAGE_PX.h * 0.45, PAGE_PX.h * 0.75);
+  const v = ctx.createRadialGradient(PAGE_PX.w / 2, PAGE_PX.h * 0.45, 80, PAGE_PX.w / 2, PAGE_PX.h * 0.5, PAGE_PX.h * 0.75);
   v.addColorStop(0, C.vignette[0]);
   v.addColorStop(1, C.vignette[1]);
   ctx.fillStyle = v;
   ctx.fillRect(0, 0, PAGE_PX.w, PAGE_PX.h);
+  grain(ctx, index + 1);
   frame(ctx);
   const max = PAGE_PX.w - 2 * M;
 
-  // Step number and dates.
   ctx.fillStyle = C.accent;
   ctx.font = `700 34px ${fonts.display}`;
-  ctx.fillText(String(index + 1).padStart(2, "0"), M, 200);
-  ctx.font = `600 34px ${fonts.body}`;
-  ctx.fillText(stop.dates, M + 80, 200);
+  ctx.fillText(String(index + 1).padStart(2, "0"), M, 190);
 
-  let y = 300;
-  // A wide logo is the company's name set as a wordmark: it stands in for the name. A square
-  // one is a symbol, so the name follows it.
+  // The year the stop began, the page's headline.
+  const year = stop.dates.match(/\d{4}/)?.[0] ?? "";
+  ctx.fillStyle = C.ink;
+  ctx.font = `800 300px ${fonts.display}`;
+  glowing(ctx, 30, () => ctx.fillText(year, M - 12, 500));
+  ctx.fillStyle = C.muted;
+  ctx.font = `500 36px ${fonts.body}`;
+  wrap(ctx, stop.dates, M, 580, max, 44, 1);
+  trace(ctx, M, 650, 240);
+
+  // The company's mark, centred in the lower half; a symbol carries the name under it, a
+  // wordmark is the name. The next chapter has no mark yet: an open ring waits for one.
+  const mid = 900;
   const wordmark = !!stop.logo && stop.logo.width / stop.logo.height > 2.5;
   if (stop.logo) {
-    const h = wordmark ? 120 : 170;
+    const h = wordmark ? 150 : 230;
     const mark = tintedLogo(stop.logo, C.ink, h);
     const w = Math.min(max, mark.width);
     const dh = (w / mark.width) * h;
-    ctx.drawImage(mark, M, y, w, dh);
-    y += dh + (wordmark ? 70 : 110);
+    const top = wordmark ? mid - dh / 2 : mid - dh / 2 - 50;
+    glowing(ctx, 18, () => ctx.drawImage(mark, (PAGE_PX.w - w) / 2, top, w, dh));
+    if (!wordmark) {
+      ctx.fillStyle = C.ink;
+      ctx.font = `700 60px ${fonts.display}`;
+      ctx.textAlign = "center";
+      wrap(ctx, stop.company, PAGE_PX.w / 2, top + dh + 80, max, 66, 1);
+      ctx.textAlign = "left";
+    }
   } else {
-    y += 40;
-  }
-
-  if (!wordmark) {
+    ctx.strokeStyle = C.accent;
+    ctx.lineWidth = 3;
+    for (const [r, from, to] of [[150, 0.2, 1.8], [105, 1.1, 2.7], [60, 0, 2]] as const) {
+      ctx.beginPath();
+      ctx.arc(PAGE_PX.w / 2, mid - 30, r, from * Math.PI, to * Math.PI);
+      ctx.stroke();
+    }
+    ctx.fillStyle = C.amber;
+    ctx.beginPath();
+    ctx.arc(PAGE_PX.w / 2, mid - 30, 12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = C.ink;
-    ctx.font = `800 84px ${fonts.display}`;
-    glowing(ctx, 14, () => (y = wrap(ctx, stop.company, M, y, max, 90, 2)));
+    ctx.font = `700 60px ${fonts.display}`;
+    ctx.textAlign = "center";
+    glowing(ctx, 14, () => ctx.fillText(stop.company, PAGE_PX.w / 2, mid + 210));
+    ctx.textAlign = "left";
   }
-  trace(ctx, M, y - 20, 220);
 
-  ctx.fillStyle = C.accent;
-  ctx.font = `600 44px ${fonts.display}`;
-  y = wrap(ctx, stop.role, M, y + 70, max, 54, 3);
-  ctx.fillStyle = C.muted;
-  ctx.font = `500 32px ${fonts.body}`;
-  y = wrap(ctx, stop.type, M, y + 6, max, 42, 2);
-
-  y += 40;
-  for (const line of stop.lines.slice(0, 2)) y = bullet(ctx, line, y, 36, 50, fonts, false) + 16;
+  // Where this page sits in the journey: one node per stop, this one lit.
+  const gap = 46;
+  const x0 = (PAGE_PX.w - gap * (count - 1)) / 2;
+  ctx.strokeStyle = C.line;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x0, 1220);
+  ctx.lineTo(x0 + gap * (count - 1), 1220);
+  ctx.stroke();
+  for (let k = 0; k < count; k++) {
+    ctx.fillStyle = k === index ? C.amber : C.paper;
+    ctx.strokeStyle = k === index ? C.amber : C.accent;
+    ctx.beginPath();
+    ctx.arc(x0 + gap * k, 1220, k === index ? 11 : 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   gutter(ctx, "left");
   return c;
