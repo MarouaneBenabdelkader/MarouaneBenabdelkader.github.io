@@ -32,7 +32,7 @@ for (const [from, to] of [[5, 0], [0, 5], [7, 0], [0, 7]]) {
   const delays = moving.map((n) => togetherDelay(n, from, to));
   const end = TURN_MS + Math.max(...delays);
   for (let t = 0; t <= end; t += 10) {
-    const eased = moving.map((n, k) => ease(Math.min(1, Math.max(0, (t - delays[k]) / TURN_MS))));
+    const eased = moving.map((_, k) => ease(Math.min(1, Math.max(0, (t - delays[k]) / TURN_MS))));
     for (let a = 0; a < moving.length; a++) {
       for (let b = a + 1; b < moving.length; b++) {
         const inFlight = eased[a] > 0.02 && eased[a] < 0.98;

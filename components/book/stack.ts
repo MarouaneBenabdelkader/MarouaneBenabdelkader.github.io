@@ -17,8 +17,7 @@ export const OPEN_SHAPE = Array.from({ length: PAGE_SEGMENTS + 1 }, (_, i) => [0
  * How strongly the paper bows at a point in its journey (q: 0 setting off, 1 arriving, in either
  * direction), in the direction of travel. The free edge leads for most of the journey, so the
  * page is clearly curled as it stands up and crosses over, then trails for the landing and settles
- * last, from above, so the paper never pushes into either stack. A bow that led all the way dug
- * into the far stack.
+ * last, from above, so the paper never pushes into either stack.
  */
 export function bowOverTurn(q: number) {
   return Math.sin(Math.PI * q) * (1.4 - 2 * q);

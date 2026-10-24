@@ -372,10 +372,6 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
       if (Math.abs(target - s) > 0.003) glideTo(target, STEP_MS);
       else restAt = s;
     };
-    // Inside the book's section the wheel never scrolls the page itself: the browser's own
-    // smooth scrolling would keep moving it under a glide, leaving it between stops or carrying
-    // it one stop too far. A new gesture is turned into a glide here; the rest of a gesture
-    // (its momentum) is swallowed; scrolling the other way turns the glide round at once.
     // Whether the stage is pinned, so scrolling belongs to the story (allowing for the header above
     // it at the very top); outside it, and past either end of the story, the page scrolls as usual.
     const pinned = () => {
@@ -383,6 +379,10 @@ export function BookExperience({ content, covers, stops, ui }: BookProps) {
       const raw = -rect.top / Math.max(1, rect.height - window.innerHeight);
       return raw >= -0.05 && raw <= 1.001;
     };
+    // Inside the book's section the wheel never scrolls the page itself: the browser's own
+    // smooth scrolling would keep moving it under a glide, leaving it between stops or carrying
+    // it one stop too far. A new gesture is turned into a glide here; the rest of a gesture
+    // (its momentum) is swallowed; scrolling the other way turns the glide round at once.
     const onWheel = (e: WheelEvent) => {
       const dir = Math.sign(e.deltaY);
       const continues = e.timeStamp - lastWheel < QUIET_MS;
