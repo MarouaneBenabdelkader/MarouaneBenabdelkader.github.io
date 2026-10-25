@@ -8,15 +8,12 @@ import { ui } from "@/content/ui";
 import { book, chapters, journey } from "@/content/book";
 import { logos } from "@/components/Logo";
 import { BookExperience, type BookProps } from "@/components/book/BookExperience";
+import { pageMeta } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   const { lang } = await params;
   if (!isLang(lang)) return {};
-  return {
-    title: tr(book.metaTitle, lang),
-    description: tr(book.metaDescription, lang),
-    alternates: { languages: { en: "/en/book/", fr: "/fr/book/" } },
-  };
+  return pageMeta(lang, "/book/", tr(book.metaTitle, lang), tr(book.metaDescription, lang));
 }
 
 export default async function BookPage({ params }: { params: Promise<{ lang: string }> }) {

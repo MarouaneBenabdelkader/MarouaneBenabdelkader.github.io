@@ -2,7 +2,7 @@ import type { T } from "./types";
 
 /** Strings for the 3D book at /[lang]/book/. Project content itself comes from projects.ts. */
 export const book = {
-  metaTitle: { en: "The book", fr: "Le livre" },
+  metaTitle: { en: "Portfolio book: AI projects in 3D", fr: "Livre portfolio : projets IA en 3D" },
   metaDescription: {
     en: "Six freelance projects in AI and web development, presented as a 3D book you can leaf through.",
     fr: "Six projets freelance en IA et développement web, présentés dans un livre 3D à feuilleter.",

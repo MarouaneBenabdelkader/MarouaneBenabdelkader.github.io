@@ -17,7 +17,7 @@ export const profile = {
   email: "benabdelkader.marouane@proton.me",
   linkedin: "https://www.linkedin.com/in/marouanebenabdelkader/",
   github: "https://github.com/MarouaneBenabdelkader",
-  cv: "/Marouane_Benabdelkader_Resume.pdf",
+  cv: { en: "/Marouane_Benabdelkader_Resume_EN.pdf", fr: "/Marouane_Benabdelkader_CV_FR.pdf" },
 
   experience: [
     {

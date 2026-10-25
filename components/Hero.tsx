@@ -46,7 +46,7 @@ function Schematic({ lang }: { lang: Lang }) {
           </text>
         ))}
       </svg>
-      <HeroPortrait src="/images/profile.jpg" alt={profile.name} />
+      <HeroPortrait src="/images/profile.jpg" alt={tr(ui.portraitAlt, lang)} />
     </div>
   );
 }
@@ -88,7 +88,7 @@ export function Hero({ lang }: { lang: Lang }) {
             {tr(ui.seeWork, lang)}
           </a>
           <a
-            href={profile.cv}
+            href={tr(profile.cv, lang)}
             download
             className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold transition-[transform,border-color] hover:-translate-y-0.5 hover:border-ink"
           >

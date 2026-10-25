@@ -141,7 +141,7 @@ export function Contact({ lang }: { lang: Lang }) {
           </li>
         ))}
         <li>
-          <a href={profile.cv} download className="inline-block rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition-opacity hover:opacity-85">
+          <a href={tr(profile.cv, lang)} download className="inline-block rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-paper transition-opacity hover:opacity-85">
             {tr(ui.downloadCv, lang)}
           </a>
         </li>

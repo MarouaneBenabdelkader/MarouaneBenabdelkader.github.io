@@ -8,6 +8,7 @@ import { ui } from "@/content/ui";
 import { Chips } from "@/components/Section";
 import { Pipeline } from "@/components/Pipeline";
 import { ScrollProgress } from "@/components/Motion";
+import { SITE, jsonLdHtml, pageMeta } from "@/lib/seo";
 
 type Params = Promise<{ lang: string; slug: string }>;
 
@@ -19,11 +20,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { lang, slug } = await params;
   const project = getProject(slug);
   if (!isLang(lang) || !project) return {};
-  return {
-    title: tr(project.title, lang),
-    description: tr(project.summary, lang),
-    alternates: { languages: { en: `/en/work/${slug}/`, fr: `/fr/work/${slug}/` } },
-  };
+  return pageMeta(lang, `/work/${slug}/`, tr(project.title, lang), tr(project.summary, lang));
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
@@ -54,9 +51,35 @@ export default async function CaseStudy({ params }: { params: Params }) {
   if (!isLang(lang) || !project) notFound();
   const index = projects.indexOf(project);
   const diagram = diagrams[slug];
+  const title = tr(project.title, lang);
+  const illustration = `${tr(ui.illustrationAlt, lang)} ${title}`;
+  // Structured data: the project as a work by the site's person, and where it sits in the site.
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      name: title,
+      description: tr(project.summary, lang),
+      url: `${SITE}/${lang}/work/${slug}/`,
+      image: `${SITE}/book/light/${slug}.jpg`,
+      inLanguage: lang,
+      genre: tr(project.sector, lang),
+      keywords: project.stack.join(", "),
+      author: { "@id": `${SITE}/#person` },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: tr(ui.navWork, lang), item: `${SITE}/${lang}/#work` },
+        { "@type": "ListItem", position: 2, name: title, item: `${SITE}/${lang}/work/${slug}/` },
+      ],
+    },
+  ];
 
   return (
     <article className="mx-auto max-w-6xl px-4 pb-20 sm:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(jsonLd)} />
       <ScrollProgress />
       <header className="rise grid gap-10 pb-12 pt-10 md:grid-cols-[minmax(0,1fr)_17rem] md:items-end md:pt-16 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">
@@ -68,7 +91,7 @@ export default async function CaseStudy({ params }: { params: Params }) {
           <span className="rounded-full bg-accent-wash px-2.5 py-0.5 font-semibold text-accent-ink">{tr(project.sector, lang)}</span>
         </p>
         <h1 className="mt-3 max-w-4xl font-display text-[clamp(2rem,5vw,3.5rem)] font-extrabold leading-[1.02] tracking-[-0.03em]">
-          {tr(project.title, lang)}
+          {title}
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">{tr(project.summary, lang)}</p>
         <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-4">
@@ -81,9 +104,9 @@ export default async function CaseStudy({ params }: { params: Params }) {
         </div>
         </div>
         {/* The project's page from the book: glowing lines in the dark theme, ink in the light one. */}
-        <figure aria-hidden className="relative mx-auto w-full max-w-xs overflow-hidden rounded-2xl border border-line shadow-xl shadow-black/15 md:mx-0 md:max-w-none">
-          <img src={`/book/light/${slug}.jpg`} alt="" width={1536} height={2057} className="block aspect-[3/4] w-full object-cover dark:hidden" />
-          <img src={`/book/dark/${slug}.jpg`} alt="" width={1536} height={2057} className="hidden aspect-[3/4] w-full object-cover dark:block" />
+        <figure className="relative mx-auto w-full max-w-xs overflow-hidden rounded-2xl border border-line shadow-xl shadow-black/15 md:mx-0 md:max-w-none">
+          <img src={`/book/light/${slug}.jpg`} alt={illustration} width={1536} height={2057} className="block aspect-[3/4] w-full object-cover dark:hidden" />
+          <img src={`/book/dark/${slug}.jpg`} alt={illustration} width={1536} height={2057} className="hidden aspect-[3/4] w-full object-cover dark:block" />
           <Link
             href={`/${lang}/book/`}
             tabIndex={-1}

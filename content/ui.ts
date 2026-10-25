@@ -17,6 +17,24 @@ export const ui = {
     en: "Available for a permanent position (CDI) from September 2027",
     fr: "Disponible pour un CDI à partir de septembre 2027",
   },
+  // What search results show for the home page: short enough not to be cut off.
+  homeTitle: {
+    en: "Marouane Benabdelkader, Full Stack AI Engineer in Nice, France",
+    fr: "Marouane Benabdelkader, Ingénieur IA Full Stack à Nice",
+  },
+  homeDescription: {
+    en: "Full Stack AI Engineer in Nice, apprentice at Amadeus: AI agents, RAG, NLP and computer vision, taken to production. Open to a CDI from September 2027.",
+    fr: "Ingénieur IA Full Stack à Nice, en alternance chez Amadeus : agents IA, RAG, NLP et vision par ordinateur, jusqu'en production. Disponible en CDI dès septembre 2027.",
+  },
+  portraitAlt: {
+    en: "Portrait of Marouane Benabdelkader, Full Stack AI Engineer",
+    fr: "Portrait de Marouane Benabdelkader, ingénieur IA full stack",
+  },
+  bookCoverAlt: {
+    en: "Cover of Marouane Benabdelkader's portfolio book",
+    fr: "Couverture du livre portfolio de Marouane Benabdelkader",
+  },
+  illustrationAlt: { en: "Illustration of the project:", fr: "Illustration du projet :" },
   workEyebrow: { en: "Freelance, 2025 – present", fr: "Freelance, 2025 – aujourd'hui" },
   workTitle: { en: "Selected freelance work", fr: "Projets freelance" },
   workIntro: {

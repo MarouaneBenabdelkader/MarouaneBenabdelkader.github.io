@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { isLang } from "@/content/types";
+import { jsonLdHtml, personJsonLd } from "@/lib/seo";
 import { Hero } from "@/components/Hero";
 import { Work } from "@/components/Work";
 import { BookTeaser } from "@/components/BookTeaser";
@@ -10,6 +11,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
   if (!isLang(lang)) notFound();
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={jsonLdHtml(personJsonLd(lang))} />
       <Hero lang={lang} />
       <Work lang={lang} />
       <BookTeaser lang={lang} />

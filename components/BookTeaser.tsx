@@ -16,7 +16,7 @@ export function BookTeaser({ lang }: { lang: Lang }) {
           <span aria-hidden className="absolute -inset-6 rounded-full bg-[#41c7b6]/20 blur-2xl transition-opacity duration-700 group-hover:opacity-100 sm:opacity-60" />
           <img
             src="/book/cover.jpg"
-            alt=""
+            alt={tr(ui.bookCoverAlt, lang)}
             width={1280}
             height={1714}
             className="relative block w-full rounded-md shadow-2xl shadow-black/60 transition-transform duration-700 [transform:perspective(700px)_rotateY(-14deg)] group-hover:[transform:perspective(700px)_rotateY(-4deg)_translateY(-4px)]"
